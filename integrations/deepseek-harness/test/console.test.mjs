@@ -871,6 +871,99 @@ test("the saved list marks the background in use like a configured model", async
   );
 });
 
+/**
+ * The saved list is split by media kind, switched the way Settings -> 插件
+ * switches which preset's plugins you are looking at: a pill that names the
+ * current choice and drops a menu of the others.
+ */
+test("the saved list switches between image and video backgrounds", async () => {
+  const document = createConsoleDocument();
+  mountSettingsDialog(document);
+  await loadConsole(document, {
+    fetch: routedFetch({
+      "/__beauticode/ui/status": () =>
+        okJson(
+          statusBody({
+            themeId: "i1",
+            themes: [
+              { id: "i1", name: "雨夜", type: "image", sourceMode: "local" },
+              { id: "v1", name: "海浪", type: "video", sourceMode: "managed" },
+            ],
+          }),
+        ),
+    }),
+  });
+
+  navCell(document).click();
+  await flushAsync();
+
+  const page = pageEl(document);
+  const switcher = page.querySelector(".bc-switcher");
+  const label = page.querySelector(".bc-switcher-label");
+  const list = page.querySelector(".bc-theme-list");
+  assert.equal(switcher.getAttribute("aria-haspopup"), "menu");
+  assert.equal(
+    label.textContent,
+    "图片",
+    "opens on the category of the background in use",
+  );
+  assert.match(list.innerHTML, /data-theme-id="i1"/);
+  assert.doesNotMatch(list.innerHTML, /data-theme-id="v1"/);
+
+  switcher.click();
+  const menu = document.body.querySelector(".bc-switcher-menu");
+  assert.equal(menu.hidden, false, "the pill drops its menu");
+  assert.equal(switcher.getAttribute("aria-expanded"), "true");
+  assert.equal(
+    menu.querySelector('[data-category="image"]').getAttribute("aria-checked"),
+    "true",
+  );
+
+  const videoOption = menu.querySelector('[data-category="video"]');
+  videoOption.click();
+  assert.equal(menu.hidden, true, "choosing a category closes the menu");
+  assert.equal(label.textContent, "视频");
+  assert.match(list.innerHTML, /data-theme-id="v1"/);
+  assert.doesNotMatch(list.innerHTML, /data-theme-id="i1"/);
+  assert.equal(videoOption.getAttribute("aria-checked"), "true");
+  // The harness parses innerHTML flat, so the check cell cannot be reached
+  // through its option; the menu markup is asserted as a whole instead.
+  assert.match(menu.innerHTML, /bc-switcher-check/);
+});
+
+test("an empty category says so instead of showing nothing", async () => {
+  const document = createConsoleDocument();
+  mountSettingsDialog(document);
+  await loadConsole(document, {
+    fetch: routedFetch({
+      "/__beauticode/ui/status": () =>
+        okJson(
+          statusBody({
+            themeId: "i1",
+            themes: [{ id: "i1", name: "雨夜", type: "image", sourceMode: "local" }],
+          }),
+        ),
+    }),
+  });
+
+  navCell(document).click();
+  await flushAsync();
+
+  const page = pageEl(document);
+  page.querySelector(".bc-switcher").click();
+  document.body.querySelector(".bc-switcher-menu").querySelector('[data-category="video"]').click();
+
+  const empty = page.querySelector(".bc-empty");
+  assert.equal(empty.hidden, false);
+  assert.match(empty.textContent, /还没有保存的视频背景/);
+  assert.equal(page.querySelector(".bc-theme-list").innerHTML, "");
+  assert.match(
+    page.querySelector(".bc-theme-toggle").innerHTML,
+    /SAVED \/ 00/,
+    "the header counts what is actually listed",
+  );
+});
+
 test("console disables its controls and reports progress while busy", async () => {
   const document = createConsoleDocument();
   mountSettingsDialog(document);

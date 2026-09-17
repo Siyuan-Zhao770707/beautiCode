@@ -102,7 +102,9 @@ test("plugin injects the console script that joins the settings dialog", async (
   // The sidebar entry point is gone: the console lives inside the settings
   // dialog now, so nothing may go looking for the sidebar settings button.
   assert.doesNotMatch(source, /bc-trigger/);
-  assert.doesNotMatch(source, /aria-haspopup/);
+  // The old sidebar entry looked for the settings button by this hook; the
+  // category switcher's own aria-haspopup="menu" is a different thing.
+  assert.doesNotMatch(source, /aria-haspopup="dialog"/);
   assert.doesNotMatch(source, /footArea\.insertBefore/);
   assert.match(source, /\[aria-modal="true"\]/);
   assert.match(source, /data-slot="settings\.section"/);

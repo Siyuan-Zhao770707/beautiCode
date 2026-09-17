@@ -812,6 +812,52 @@ test("the page reports the applied state in exactly one place", async () => {
   assert.match(page.querySelector(".bc-msg").textContent, /背景服务没有响应/);
 });
 
+/**
+ * The saved-background rows are the same kind of control as the model picker's
+ * option list, so they are styled and marked the same way: a rounded row that
+ * fills on hover, and a check mark on the active entry instead of a filled row
+ * plus a coloured source pill.
+ */
+test("the saved list marks the active background like the model list does", async () => {
+  const document = createConsoleDocument();
+  mountSettingsDialog(document);
+  const runtime = await loadConsole(document, {
+    fetch: routedFetch({
+      "/__beauticode/ui/status": () =>
+        okJson(
+          statusBody({
+            themeId: "t2",
+            themes: [
+              { id: "t1", name: "雨夜", sourceMode: "local" },
+              { id: "t2", name: "怪诞小镇", sourceMode: "managed" },
+            ],
+          }),
+        ),
+    }),
+  });
+
+  navCell(document).click();
+  await flushAsync();
+
+  const list = pageEl(document).querySelector(".bc-theme-list");
+  const markup = list.innerHTML;
+  assert.match(markup, /<span class="bc-theme-name">怪诞小镇<\/span>/);
+  assert.match(markup, /data-theme-id="t2"[^>]*aria-current="true"/);
+  assert.equal(
+    (markup.match(/<svg/g) ?? []).length,
+    1,
+    "only the active entry carries the check mark",
+  );
+  assert.match(
+    markup,
+    /<span class="bc-theme-check"><\/span><\/button>/,
+    "every row still reserves the check cell so names line up",
+  );
+  // And the old look is gone: no filled active row, no accent-coloured pill.
+  assert.doesNotMatch(runtime.source, /bc-theme-item\[aria-current="true"\]\{background/);
+  assert.doesNotMatch(runtime.source, /bc-source\{[^}]*background:var\(--dsw-specific/);
+});
+
 test("console disables its controls and reports progress while busy", async () => {
   const document = createConsoleDocument();
   mountSettingsDialog(document);

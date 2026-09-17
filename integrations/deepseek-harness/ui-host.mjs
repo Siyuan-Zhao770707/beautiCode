@@ -112,14 +112,24 @@ function suggestedThemeName(fileName, fallback) {
   return stem || fallback;
 }
 
+const IMAGE_FILTER =
+  "Image Files (*.jpg;*.jpeg;*.png;*.webp;*.avif)|*.jpg;*.jpeg;*.png;*.webp;*.avif";
+const VIDEO_FILTER = "MP4 Video (*.mp4)|*.mp4";
+// One dialog for the merged 导入背景 row: the combined entry first, then the two
+// narrower ones, so a Windows user can still filter to just pictures or video.
+const MEDIA_FILTER =
+  `Images and videos (*.jpg;*.jpeg;*.png;*.webp;*.avif;*.mp4)|*.jpg;*.jpeg;*.png;*.webp;*.avif;*.mp4|` +
+  `${IMAGE_FILTER}|${VIDEO_FILTER}`;
+
+/** Pick requests the host accepts: one media kind, or both at once. */
+export const PICK_KINDS = Object.freeze(["image", "video", "media"]);
+
 export function buildWindowsPickerScript(
   kind,
   { parentPid = process.pid, timeoutMs = PICKER_TIMEOUT_MS } = {},
 ) {
   const filter =
-    kind === "video"
-      ? "MP4 Video (*.mp4)|*.mp4"
-      : "Image Files (*.jpg;*.jpeg;*.png;*.webp;*.avif)|*.jpg;*.jpeg;*.png;*.webp;*.avif";
+    kind === "video" ? VIDEO_FILTER : kind === "media" ? MEDIA_FILTER : IMAGE_FILTER;
   const safeParentPid = Number.isSafeInteger(parentPid) && parentPid > 0
     ? parentPid
     : process.pid;
@@ -245,11 +255,13 @@ export function createWindowsMediaPicker({
         }
         const name = path.basename(selected.replaceAll("\\", "/"));
         const parsed = parseImportFilename(name);
-        if (!parsed.ok || parsed.kind !== kind) {
+        // "media" accepts either kind; the dialog's filter is a convenience, so
+        // the extension still decides what the file actually is.
+        if (!parsed.ok || (kind !== "media" && parsed.kind !== kind)) {
           settle(reject, new Error(parsed.ok ? "选择的文件类型不匹配。" : parsed.error));
           return;
         }
-        settle(resolve, { ok: true, kind, path: path.resolve(selected), name });
+        settle(resolve, { ok: true, kind: parsed.kind, path: path.resolve(selected), name });
       });
     });
   };
@@ -538,8 +550,8 @@ export function createBeauticodeUi({
         return;
       }
       const body = await readJson(req);
-      if (body.kind !== "image" && body.kind !== "video") {
-        sendJson(res, 400, { ok: false, error: "kind 必须是 image 或 video。" });
+      if (!PICK_KINDS.includes(body.kind)) {
+        sendJson(res, 400, { ok: false, error: "kind 必须是 image、video 或 media。" });
         return;
       }
       if (pickerBusy) {

@@ -350,10 +350,10 @@ function statusBody(extra = {}) {
 
 /** Routes by path so the status payload and the import routes can differ. */
 function routedFetch(routes) {
-  return async (path) => {
+  return async (path, init) => {
     const handler = routes[path];
     if (!handler) return okJson({ ok: false, error: `unrouted ${path}` });
-    return handler(path);
+    return handler(path, init);
   };
 }
 
@@ -427,7 +427,7 @@ test("console adds a 背景 cell and page to the settings dialog, inactive", asy
   assert.equal(page.previousElementSibling, dialog.anchor);
   assert.equal(page.hidden, true);
   assert.equal(dialog.dialog.getAttribute("data-bc-page"), null);
-  assert.ok(page.querySelector('[data-act="image"]'), "the import control is wired");
+  assert.ok(page.querySelector('[data-act="media"]'), "the import control is wired");
 });
 
 test("console injects nothing while no settings dialog is open", async () => {
@@ -605,10 +605,9 @@ test("console page follows the settings row recipe", async () => {
   const page = pageEl(document);
   const html = page.innerHTML;
   // innerHTML parsing is flat in this harness, so nesting is asserted textually.
-  assert.ok(html.indexOf('class="bc-row-text"') < html.indexOf('data-act="image"'));
-  assert.equal(page.querySelectorAll(".bc-row-title").length, 7);
-  assert.equal(page.querySelectorAll(".bc-row-desc").length, 7);
-  assert.ok(page.querySelector('[data-act="video"]'));
+  assert.ok(html.indexOf('class="bc-row-text"') < html.indexOf('data-act="media"'));
+  assert.equal(page.querySelectorAll(".bc-row-title").length, 6);
+  assert.equal(page.querySelectorAll(".bc-row-desc").length, 6);
   assert.ok(page.querySelector('[data-act="sound"]'));
   assert.ok(page.querySelector('[data-act="clear"]'));
   assert.ok(page.querySelector('[data-act="gallery"]'));
@@ -638,36 +637,48 @@ test("console opens the file picker inside the click when managed upload is allo
   navCell(document).click();
   await flushAsync();
 
-  pageEl(document).querySelector('[data-act="image"]').click();
+  pageEl(document).querySelector('[data-act="media"]').click();
   // No await between the click and these assertions: the picker must open in
   // the same synchronous block as the gesture, not after a round trip.
   const picker = filePicker(document);
   assert.equal(picker.clicks, 1, "file picker opens from the click handler");
-  assert.match(picker.accept, /image\/jpeg/);
+  // macOS and Linux take this route, so the one dialog must offer both kinds.
+  for (const type of [".jpg", ".png", ".webp", ".avif", ".mp4", "image/jpeg", "video/mp4"]) {
+    assert.ok(picker.accept.includes(type), `the merged picker accepts ${type}`);
+  }
   assert.equal(picker.dataset.compatibilityUpload, "true");
 });
 
-test("console leaves the browser picker closed when the host picker is required", async () => {
+test("console asks the host for one media pick when the native picker is required", async () => {
   const document = createConsoleDocument();
   mountSettingsDialog(document);
+  const picks = [];
   await loadConsole(document, {
     fetch: routedFetch({
       "/__beauticode/ui/status": () =>
         okJson(
           statusBody({ importPolicy: { nativeLocalRequired: true, managedUploadAllowed: false } }),
         ),
-      "/__beauticode/ui/pick": () => okJson({ ok: true, cancelled: true }),
+      "/__beauticode/ui/pick": (_path, init) => {
+        picks.push(JSON.parse(init.body));
+        return okJson({ ok: true, cancelled: true });
+      },
     }),
   });
 
   navCell(document).click();
   await flushAsync();
 
-  pageEl(document).querySelector('[data-act="image"]').click();
+  pageEl(document).querySelector('[data-act="media"]').click();
   assert.equal(filePicker(document).clicks ?? 0, 0, "the host picker path opens no browser picker");
 
   await flushAsync();
   assert.equal(filePicker(document).clicks ?? 0, 0, "and none appears once the round trip settles");
+  assert.deepEqual(
+    picks,
+    [{ kind: "media" }],
+    "Windows asks the host for one dialog that takes either kind",
+  );
 });
 
 test("console keeps the picker closed until importPolicy arrives", async () => {
@@ -683,10 +694,10 @@ test("console keeps the picker closed until importPolicy arrives", async () => {
 
   navCell(document).click();
   const page = pageEl(document);
-  const imageButton = page.querySelector('[data-act="image"]');
-  assert.equal(imageButton.disabled, true, "import stays locked until /ui/status reports a policy");
+  const mediaButton = page.querySelector('[data-act="media"]');
+  assert.equal(mediaButton.disabled, true, "import stays locked until /ui/status reports a policy");
 
-  imageButton.click();
+  mediaButton.click();
   assert.equal(filePicker(document).clicks ?? 0, 0, "no browser picker before the policy is known");
   assert.equal(
     hits.some((path) => path.includes("/ui/pick")),
@@ -704,8 +715,7 @@ test("console descriptions stay plain and free of host detail", async () => {
   const markup = pageEl(document).innerHTML;
   for (const line of [
     "给 DSH 换一张背景图或视频。",
-    "支持常见图片格式",
-    "仅支持 MP4",
+    "支持常见图片格式和 MP4 视频",
     "隐藏浏览器标签页和地址栏，Esc 退出",
     "压暗背景，让内容更清楚",
     "播放视频背景的声音",
@@ -735,7 +745,7 @@ test("console unlocks import once a managed-upload policy lands", async () => {
   await flushAsync();
 
   const page = pageEl(document);
-  assert.equal(page.querySelector('[data-act="image"]').disabled, false);
+  assert.equal(page.querySelector('[data-act="media"]').disabled, false);
   assert.equal(
     page.innerHTML.includes("托管"),
     false,
@@ -759,7 +769,7 @@ test("console unlocks import under a native-picker-only policy too", async () =>
   await flushAsync();
 
   const page = pageEl(document);
-  assert.equal(page.querySelector('[data-act="image"]').disabled, false);
+  assert.equal(page.querySelector('[data-act="media"]').disabled, false);
   assert.equal(
     page.innerHTML.includes("引用"),
     false,

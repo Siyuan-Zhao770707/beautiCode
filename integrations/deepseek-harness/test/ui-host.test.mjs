@@ -8,6 +8,7 @@ import { PassThrough } from "node:stream";
 import test from "node:test";
 import { apply } from "../index.mjs";
 import {
+  PICK_KINDS,
   buildWindowsPickerScript,
   createWindowsMediaPicker,
   parseImportFilename,
@@ -120,8 +121,8 @@ test("plugin injects the console script that joins the settings dialog", async (
   assert.match(source, /importPolicyReady/);
   // The rows describe what they do; how the host stores the file is not the
   // user's problem, so no policy wording reaches the served page.
-  assert.match(source, /支持常见图片格式/);
-  assert.match(source, /仅支持 MP4/);
+  assert.match(source, /支持常见图片格式和 MP4 视频/);
+  assert.match(source, /data-act="media"/);
   assert.doesNotMatch(source, /零复制播放/);
   assert.doesNotMatch(source, /直接引用本地文件/);
   assert.match(source, /正在确认导入方式/);
@@ -242,6 +243,116 @@ test("console UI routes require same-origin and reject bad files", async (t) => 
     })).status,
     404,
   );
+});
+
+test("the merged 导入背景 row asks one dialog for pictures or video", () => {
+  // Windows takes the native route, so the one button has to produce one dialog
+  // that offers both kinds instead of two dialogs the user has to choose from.
+  const script = buildWindowsPickerScript("media");
+  assert.match(
+    script,
+    /\$dialog\.Filter = 'Images and videos \(\*\.jpg;\*\.jpeg;\*\.png;\*\.webp;\*\.avif;\*\.mp4\)\|\*\.jpg;\*\.jpeg;\*\.png;\*\.webp;\*\.avif;\*\.mp4\|/,
+  );
+  // The narrower entries stay available as a filter choice in the same dialog.
+  assert.match(script, /Image Files \(\*\.jpg;\*\.jpeg;\*\.png;\*\.webp;\*\.avif\)/);
+  assert.match(script, /MP4 Video \(\*\.mp4\)/);
+  assert.deepEqual([...PICK_KINDS], ["image", "video", "media"]);
+});
+
+test("/ui/pick accepts the merged media kind and nothing else", async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "beauticode-media-kind-"));
+  const tokenFile = path.join(root, "token");
+  await fs.writeFile(tokenFile, TOKEN);
+  const kinds = [];
+  const plugin = await createPluginServer(tokenFile, {
+    pickMedia: async (kind) => {
+      kinds.push(kind);
+      return { ok: true, cancelled: true };
+    },
+  });
+  t.after(async () => {
+    await plugin.dispose();
+    await fs.rm(root, { recursive: true, force: true });
+  });
+  const pick = (kind) => fetch(`${plugin.origin}/__beauticode/ui/pick`, {
+    method: "POST",
+    headers: { Origin: plugin.origin, "content-type": "application/json" },
+    body: JSON.stringify({ kind }),
+  });
+
+  assert.equal((await pick("media")).status, 200);
+  assert.deepEqual(kinds, ["media"], "the host forwards the merged kind as asked");
+  const refused = await pick("banana");
+  assert.equal(refused.status, 400);
+  assert.match((await refused.json()).error, /image、video 或 media/);
+});
+
+test("every Windows picker filter is a well-formed WinForms list", () => {
+  // WinForms reads Filter as label|pattern pairs, and a pattern as one or more
+  // ;-separated specs. A malformed string does not throw — the dialog just comes
+  // up with the wrong filter — so the shape is pinned here for every kind.
+  for (const kind of PICK_KINDS) {
+    const script = buildWindowsPickerScript(kind);
+    const encoded = /\$dialog\.Filter = '([^']*)'/.exec(script);
+    assert.ok(encoded, `${kind}: the script sets a filter`);
+    const parts = encoded[1].split("|");
+    assert.equal(parts.length % 2, 0, `${kind}: every label has a pattern`);
+    assert.ok(parts.length >= 2, `${kind}: at least one entry`);
+    for (let i = 0; i < parts.length; i += 2) {
+      assert.match(parts[i], /^[^|]+ \([^)]+\)$/, `${kind}: entry ${i / 2} is labelled`);
+      for (const spec of parts[i + 1].split(";")) {
+        assert.match(spec, /^\*\.[a-z0-9]+$/i, `${kind}: pattern spec ${spec}`);
+      }
+    }
+    const patterns = parts.filter((_, index) => index % 2 === 1).join(";");
+    if (kind === "media") {
+      assert.match(patterns, /\*\.mp4/);
+      assert.match(patterns, /\*\.jpg/);
+    } else if (kind === "video") {
+      assert.doesNotMatch(patterns, /\*\.jpg/);
+    } else {
+      assert.doesNotMatch(patterns, /\*\.mp4/);
+    }
+  }
+});
+
+test("the merged media pick resolves the kind from what was selected", async () => {
+  const picked = await new Promise((resolve, reject) => {
+    const child = new EventEmitter();
+    child.stdout = new PassThrough();
+    child.stderr = new PassThrough();
+    child.kill = () => true;
+    const picker = createWindowsMediaPicker({
+      platform: "win32",
+      parentProcess: new EventEmitter(),
+      spawnProcess: () => child,
+    });
+    picker("media").then(resolve, reject);
+    child.stdout.write("C:\\walls\\clip.mp4");
+    child.stdout.end();
+    child.emit("close", 0);
+  });
+  assert.equal(picked.kind, "video", "a media pick reports the kind it actually found");
+  assert.equal(picked.name, "clip.mp4");
+});
+
+test("the merged media pick still refuses a file neither kind covers", async () => {
+  const failure = await new Promise((resolve) => {
+    const child = new EventEmitter();
+    child.stdout = new PassThrough();
+    child.stderr = new PassThrough();
+    child.kill = () => true;
+    const picker = createWindowsMediaPicker({
+      platform: "win32",
+      parentProcess: new EventEmitter(),
+      spawnProcess: () => child,
+    });
+    picker("media").catch(resolve);
+    child.stdout.write("C:\\notes\\readme.txt");
+    child.stdout.end();
+    child.emit("close", 0);
+  });
+  assert.match(failure.message, /只支持图片/);
 });
 
 test("Windows picker uses a foreground owner and a parent watchdog", () => {

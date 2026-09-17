@@ -3,8 +3,12 @@
   if (window.__beauticodeConsoleLoaded) return;
   window.__beauticodeConsoleLoaded = true;
 
-  const IMAGE_ACCEPT = ".jpg,.jpeg,.png,.webp,.avif,image/jpeg,image/png,image/webp,image/avif";
-  const VIDEO_ACCEPT = ".mp4,video/mp4";
+  // One dialog has to offer both kinds, so the accept list carries both. Every
+  // mainstream browser filters by it and still reports the picked file's own
+  // name, which is what decides image vs video on the host.
+  const MEDIA_ACCEPT =
+    ".jpg,.jpeg,.png,.webp,.avif,.mp4," +
+    "image/jpeg,image/png,image/webp,image/avif,video/mp4";
 
   const style = document.createElement("style");
   style.dataset.beauticodeConsole = "true";
@@ -95,15 +99,10 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     '<p class="bc-msg" role="status" aria-live="polite" hidden></p>' +
     '<div class="bc-group">' +
     '<div class="bc-row"><div class="bc-row-text">' +
-    '<span class="bc-row-title">导入图片</span>' +
-    '<span class="bc-row-desc" data-desc="image">支持常见图片格式</span>' +
+    '<span class="bc-row-title">导入背景</span>' +
+    '<span class="bc-row-desc" data-desc="media">支持常见图片格式和 MP4 视频</span>' +
     "</div>" +
-    '<div class="bc-control"><button type="button" class="bc-btn bc-pill" data-act="image">选择图片</button></div></div>' +
-    '<div class="bc-row"><div class="bc-row-text">' +
-    '<span class="bc-row-title">导入视频</span>' +
-    '<span class="bc-row-desc" data-desc="video">仅支持 MP4</span>' +
-    "</div>" +
-    '<div class="bc-control"><button type="button" class="bc-btn bc-pill" data-act="video">选择视频</button></div></div>' +
+    '<div class="bc-control"><button type="button" class="bc-btn bc-pill" data-act="media">选择文件</button></div></div>' +
     "</div>" +
     '<div class="bc-group">' +
     '<div class="bc-row" data-row="fullscreen"><div class="bc-row-text">' +
@@ -148,6 +147,7 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
   const fileInput = document.createElement("input");
   fileInput.id = "beauticode-console-file";
   fileInput.type = "file";
+  fileInput.accept = MEDIA_ACCEPT;
 
   document.body.append(fileInput);
 
@@ -162,8 +162,7 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
   const themeToggle = page.querySelector(".bc-theme-toggle");
   const themeList = page.querySelector(".bc-theme-list");
   const msgEl = page.querySelector(".bc-msg");
-  const imageBtn = page.querySelector('[data-act="image"]');
-  const videoBtn = page.querySelector('[data-act="video"]');
+  const mediaBtn = page.querySelector('[data-act="media"]');
   const AUTO_DIM_PERCENT = 42;
   let busy = false;
   let muted = true;
@@ -327,8 +326,7 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
 
   function syncImportControls() {
     const locked = busy || !importPolicyReady;
-    imageBtn.disabled = locked;
-    videoBtn.disabled = locked;
+    mediaBtn.disabled = locked;
   }
 
   function renderStatus(data) {
@@ -561,7 +559,7 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     });
   }
 
-  async function pickAndImport(kind) {
+  async function pickAndImport() {
     let picked;
     try {
       picked = await request(
@@ -569,7 +567,7 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
         {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ kind }),
+          body: JSON.stringify({ kind: "media" }),
         },
         // The user controls how long the native dialog stays open. Import and
         // theme switching still use the bounded request timeout above.
@@ -580,7 +578,6 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
       return {
         ok: true,
         afterRun: () => {
-          fileInput.accept = kind === "video" ? VIDEO_ACCEPT : IMAGE_ACCEPT;
           fileInput.dataset.compatibilityUpload = "true";
           fileInput.click();
         },
@@ -660,24 +657,20 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
   // for an input hidden with display:none. On platforms that allow a managed
   // upload, open the picker right here rather than asking /ui/pick first: that
   // round trip pushed the click past the gesture, so the picker never appeared.
-  function startImport(kind) {
+  function startImport() {
     if (!importPolicyReady) {
       showMessage("正在确认导入方式，请稍候再试。");
       return;
     }
     if (!managedUploadAllowed) {
-      void run(() => pickAndImport(kind));
+      void run(() => pickAndImport());
       return;
     }
-    fileInput.accept = kind === "video" ? VIDEO_ACCEPT : IMAGE_ACCEPT;
     fileInput.dataset.compatibilityUpload = "true";
     fileInput.click();
   }
-  imageBtn.addEventListener("click", () => {
-    startImport("image");
-  });
-  videoBtn.addEventListener("click", () => {
-    startImport("video");
+  mediaBtn.addEventListener("click", () => {
+    startImport();
   });
   syncImportControls();
   page.querySelector('[data-act="gallery"]').addEventListener("click", () => {

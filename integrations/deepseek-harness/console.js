@@ -12,8 +12,6 @@
     { id: "image", label: "图片" },
     { id: "video", label: "视频" },
   ];
-  const CHECK_GLYPH =
-    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.4 6.6 11.5 12.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   let themeCategory = "image";
   let themeCategoryPinned = false;
   const MEDIA_ACCEPT =
@@ -44,7 +42,6 @@
 #beauticode-console-page .bc-dim-slider::-webkit-slider-runnable-track{height:4px;border-radius:999px;background:var(--dsw-alias-border-l3)}
 #beauticode-console-page .bc-dim-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;margin-top:-5px;border:.5px solid var(--dsw-alias-border-l4);border-radius:50%;background:var(--dsw-alias-bg-layer-1);box-shadow:var(--dsw-shadow-lv1);cursor:pointer}
 #beauticode-console-page .bc-dim-value{min-width:2.6em;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;font-variant-numeric:tabular-nums;text-align:right}
-#beauticode-console-page .bc-theme-toggle{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;height:auto;padding:12px 0;border:0;background:0 0;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;font-weight:600;line-height:18px;letter-spacing:.06em;text-align:left}
 /* Rows follow the model rows in Settings -> 模型: each saved background is a
    card wrapped in a rounded outline, the source reads as a bordered tag, and
    the background in use carries the same 8px green state dot those rows use. */
@@ -59,25 +56,21 @@
 #beauticode-console-page .bc-theme-del{cursor:pointer;flex:none;box-sizing:border-box;width:28px;height:28px;margin-left:auto;padding:0;border:0;border-radius:6px;background:0 0;color:var(--dsw-alias-label-tertiary);font-size:15px;line-height:28px;text-align:center}
 #beauticode-console-page .bc-theme-del:hover:not(:disabled){color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-interactive-bg-hover-danger)}
 #beauticode-console-page .bc-theme-del:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3);outline:none}
-#beauticode-console-page .bc-btn:disabled,#beauticode-console-page .bc-theme-toggle:disabled,#beauticode-console-page .bc-theme-item:disabled,#beauticode-console-page .bc-theme-del:disabled{opacity:.38;cursor:default}
-/* The category switcher is the pill-and-menu control Settings -> 插件 uses to
-   switch which preset's plugins you are looking at; here it switches between
-   the saved image backgrounds and the saved video ones. */
-#beauticode-console-page .bc-theme-head{align-items:center;gap:8px;display:flex}
-#beauticode-console-page .bc-switcher{white-space:nowrap;background:var(--dsw-alias-bg-module-platform);height:36px;color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer;border:0;border-radius:18px;flex:none;align-items:center;gap:12px;margin-left:auto;padding:0 14px;font-size:14px;line-height:22px;display:inline-flex}
-#beauticode-console-page .bc-switcher:hover{background:var(--dsw-alias-interactive-bg-hover)}
-#beauticode-console-page .bc-switcher:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}
-#beauticode-console-page .bc-switcher-label{text-overflow:ellipsis;max-width:240px;overflow:hidden}
-#beauticode-console-page .bc-switcher-chevron{color:var(--dsw-alias-label-tertiary);flex:none}
+#beauticode-console-page .bc-btn:disabled,#beauticode-console-page .bc-theme-item:disabled,#beauticode-console-page .bc-theme-del:disabled,#beauticode-console-page .bc-tab:disabled{opacity:.38;cursor:default}
+/* Title and tabs. The tab row is the one Settings -> 插件 puts above its two
+   pages: a hairline rule with the tabs on it, the active one in label-primary
+   with a 2px underline. */
+#beauticode-console-page .bc-theme-head{align-items:baseline;gap:7px;padding:0 2px;display:flex}
+#beauticode-console-page .bc-theme-title{color:var(--dsw-alias-label-primary);margin:0;font-size:13px;font-weight:600;line-height:20px}
+#beauticode-console-page .bc-theme-count{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;font-size:12px;line-height:18px}
+#beauticode-console-page .bc-tabs{border-bottom:.5px solid var(--dsw-alias-border-l2);align-items:flex-end;gap:22px;margin-top:6px;display:flex}
+#beauticode-console-page .bc-tab{color:var(--dsw-alias-label-tertiary);font:inherit;cursor:pointer;background:0 0;border:0;padding:7px 1px 9px;font-size:13px;line-height:20px;position:relative}
+#beauticode-console-page .bc-tab:hover,#beauticode-console-page .bc-tab[data-active="true"]{color:var(--dsw-alias-label-primary)}
+#beauticode-console-page .bc-tab[data-active="true"]:after{background:var(--dsw-alias-label-primary);content:"";border-radius:2px 2px 0 0;height:2px;position:absolute;bottom:-1px;left:0;right:0}
+#beauticode-console-page .bc-tab:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px;color:var(--dsw-alias-label-primary);border-radius:2px}
+#beauticode-console-page .bc-theme-panel{min-width:0;padding-top:2px}
 #beauticode-console-page .bc-empty{margin:0;color:var(--dsw-alias-label-tertiary);padding:10px;font-size:13px;line-height:20px}
 /* Portalled to <body>, so it cannot be clipped by the scrolling settings pane. */
-.bc-switcher-menu{z-index:1200;background:var(--dsw-specific-menu);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);min-width:160px;box-shadow:var(--dsw-elevation-prominent);color:var(--dsw-alias-label-primary);border:0;border-radius:20px;flex-direction:column;padding:4px;display:flex;position:fixed}
-.bc-switcher-menu[hidden]{display:none}
-.bc-switcher-option{box-sizing:border-box;min-height:38px;color:inherit;font:inherit;font-size:14px;line-height:20px;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:10px;align-items:center;gap:8px;padding:6px 8px;display:flex}
-.bc-switcher-option:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.bc-switcher-option:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:-2px}
-.bc-switcher-name{flex:1;min-width:0}
-.bc-switcher-check{flex:0 0 18px;color:var(--dsw-alias-label-primary);place-items:center;display:grid}
 #beauticode-console-page .bc-msg{margin:0;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
 #beauticode-console-page[data-busy="true"] .bc-page-title::before{content:"";display:inline-block;width:6px;height:6px;margin-right:6px;border-radius:50%;background:var(--dsw-alias-state-business-primary);animation:bc-pulse .9s steps(2,end) infinite}
 @keyframes bc-pulse{50%{opacity:.25}}
@@ -159,16 +152,17 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     "</div>" +
     '<div class="bc-group bc-themes" hidden>' +
     '<div class="bc-theme-head">' +
-    '<button type="button" class="bc-theme-toggle" aria-expanded="true"><span>SAVED / 00</span><span>−</span></button>' +
-    '<button type="button" class="bc-switcher" aria-haspopup="menu" aria-expanded="false" aria-label="切换背景分类">' +
-    '<span class="bc-switcher-label">图片</span>' +
-    '<svg class="bc-switcher-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
-    '<path d="M4 6.5 8 10.5 12 6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>' +
-    "</svg>" +
-    "</button>" +
+    '<h3 class="bc-theme-title">已保存的背景</h3>' +
+    '<span class="bc-theme-count"></span>' +
     "</div>" +
-    '<div class="bc-theme-list" hidden></div>' +
+    '<div class="bc-tabs" role="tablist" aria-label="背景分类">' +
+    '<button type="button" role="tab" class="bc-tab" data-category="image" data-active="true" aria-selected="true">图片</button>' +
+    '<button type="button" role="tab" class="bc-tab" data-category="video" aria-selected="false">视频</button>' +
+    "</div>" +
+    '<div class="bc-theme-panel">' +
+    '<div class="bc-theme-list"></div>' +
     '<p class="bc-empty" hidden></p>' +
+    "</div>" +
     "</div>" +
     '<div class="bc-group">' +
     '<div class="bc-row"><div class="bc-row-text">' +
@@ -190,20 +184,6 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
 
   document.body.append(fileInput);
 
-  const themeMenu = document.createElement("div");
-  themeMenu.className = "bc-switcher-menu";
-  themeMenu.setAttribute("role", "menu");
-  themeMenu.setAttribute("aria-label", "背景分类");
-  themeMenu.hidden = true;
-  themeMenu.innerHTML = THEME_CATEGORIES.map(
-    (category) =>
-      '<button type="button" role="menuitemradio" class="bc-switcher-option"' +
-      ` data-category="${category.id}" aria-checked="false">` +
-      `<span class="bc-switcher-name">${category.label}</span>` +
-      '<span class="bc-switcher-check" aria-hidden="true"></span>' +
-      "</button>",
-  ).join("");
-  document.body.append(themeMenu);
 
   const soundBtn = page.querySelector('[data-act="sound"]');
   const dimSlider = page.querySelector(".bc-dim-slider");
@@ -212,18 +192,16 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
   const fullscreenRow = page.querySelector('[data-row="fullscreen"]');
   const fullscreenBtn = page.querySelector('[data-act="fullscreen"]');
   const themesBox = page.querySelector(".bc-themes");
-  const themeToggle = page.querySelector(".bc-theme-toggle");
   const themeList = page.querySelector(".bc-theme-list");
   const themeEmpty = page.querySelector(".bc-empty");
-  const themeSwitcher = page.querySelector(".bc-switcher");
-  const themeSwitcherLabel = page.querySelector(".bc-switcher-label");
+  const themeCount = page.querySelector(".bc-theme-count");
+  const themeTabs = Array.from(page.querySelectorAll(".bc-tab"));
   const msgEl = page.querySelector(".bc-msg");
   const mediaBtn = page.querySelector('[data-act="media"]');
   const AUTO_DIM_PERCENT = 42;
   let busy = false;
   let muted = true;
   let currentThemeId = "";
-  let themesExpanded = true;
   // /ui/status reports whether the host lets the browser upload a managed copy.
   // It is true on every non-Windows platform, where /ui/pick can only answer
   // native_picker_unavailable. Cached here so the import buttons can decide
@@ -413,10 +391,8 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     if (themes.length === 0) {
       themesBox.hidden = true;
       themeList.innerHTML = "";
-      themeList.hidden = true;
       themeEmpty.hidden = true;
-      themeToggle.setAttribute("aria-expanded", "false");
-      closeThemeMenu();
+      themeCount.textContent = "";
       return;
     }
     themesBox.hidden = false;
@@ -426,15 +402,15 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     if (!themeCategoryPinned && active) themeCategory = categoryOfTheme(active);
     const visible = themes.filter((theme) => categoryOfTheme(theme) === themeCategory);
     const categoryLabel = categoryLabelOf(themeCategory);
-    themeSwitcherLabel.textContent = categoryLabel;
-    for (const option of themeMenuOptions()) {
-      const on = option.dataset.category === themeCategory;
-      option.setAttribute("aria-checked", on ? "true" : "false");
-      const check = option.querySelector(".bc-switcher-check");
-      if (check) check.innerHTML = on ? CHECK_GLYPH : "";
+    for (const tab of themeTabs) {
+      const on = tab.dataset.category === themeCategory;
+      tab.setAttribute("aria-selected", on ? "true" : "false");
+      if (on) tab.setAttribute("data-active", "true");
+      else tab.removeAttribute("data-active");
     }
+    themeCount.textContent = String(visible.length);
     themeEmpty.textContent = `还没有保存的${categoryLabel}背景。`;
-    themeEmpty.hidden = !themesExpanded || visible.length > 0;
+    themeEmpty.hidden = visible.length > 0;
     themeList.innerHTML = visible
       .map((theme) => {
         const del =
@@ -453,9 +429,6 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
         return `<div class="bc-theme-row"><button type="button" class="bc-theme-item" data-theme-id="${escapeAttr(theme.id)}"${current}><span class="bc-theme-name">${escapeText(theme.name)}</span><span class="bc-source">${source}</span>${dot}</button>${del}</div>`;
       })
       .join("");
-    themeToggle.innerHTML = `<span>SAVED / ${String(visible.length).padStart(2, "0")}</span><span>${themesExpanded ? "−" : "+"}</span>`;
-    themeList.hidden = !themesExpanded;
-    themeToggle.setAttribute("aria-expanded", themesExpanded ? "true" : "false");
   }
 
   function categoryOfTheme(theme) {
@@ -464,27 +437,6 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
 
   function categoryLabelOf(id) {
     return THEME_CATEGORIES.find((category) => category.id === id)?.label ?? "图片";
-  }
-
-  function themeMenuOptions() {
-    return Array.from(themeMenu.querySelectorAll(".bc-switcher-option"));
-  }
-
-  function closeThemeMenu() {
-    if (themeMenu.hidden) return;
-    themeMenu.hidden = true;
-    themeSwitcher.setAttribute("aria-expanded", "false");
-  }
-
-  function openThemeMenu() {
-    const rect = themeSwitcher.getBoundingClientRect?.();
-    if (rect) {
-      themeMenu.style.top = `${Math.round(rect.bottom + 6)}px`;
-      themeMenu.style.right = `${Math.round(Math.max(8, window.innerWidth - rect.right))}px`;
-      themeMenu.style.left = "auto";
-    }
-    themeMenu.hidden = false;
-    themeSwitcher.setAttribute("aria-expanded", "true");
   }
 
   function escapeText(value) {
@@ -548,7 +500,7 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     busy = true;
     page.dataset.busy = "true";
     let afterRun = null;
-    for (const button of page.querySelectorAll(".bc-btn, .bc-theme-toggle, .bc-theme-item, .bc-theme-del")) button.disabled = true;
+    for (const button of page.querySelectorAll(".bc-btn, .bc-theme-item, .bc-theme-del")) button.disabled = true;
     showMessage("正在处理，请稍候…");
     try {
       const result = await task();
@@ -573,7 +525,7 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     } finally {
       busy = false;
       delete page.dataset.busy;
-      for (const button of page.querySelectorAll(".bc-btn, .bc-theme-toggle, .bc-theme-item, .bc-theme-del")) button.disabled = false;
+      for (const button of page.querySelectorAll(".bc-btn, .bc-theme-item, .bc-theme-del")) button.disabled = false;
       syncImportControls();
     }
     if (afterRun) queueMicrotask(afterRun);
@@ -812,35 +764,27 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
   document.addEventListener("fullscreenchange", renderFullscreen);
   document.addEventListener("webkitfullscreenchange", renderFullscreen);
   renderFullscreen();
-  themeSwitcher.addEventListener("click", (event) => {
-    event.stopPropagation();
-    if (themeMenu.hidden) openThemeMenu();
-    else closeThemeMenu();
-  });
-  themeMenu.addEventListener("click", (event) => {
-    const option = event.target?.closest?.("[data-category]");
-    if (!option) return;
-    themeCategory = option.dataset.category === "video" ? "video" : "image";
+  // Tabs, with the arrow-key movement a tablist is expected to have.
+  function selectThemeCategory(next) {
+    themeCategory = next === "video" ? "video" : "image";
     themeCategoryPinned = true;
-    closeThemeMenu();
     if (lastStatus) renderStatus(lastStatus);
-  });
-  // The menu is portalled, so "outside" means outside both it and its button.
-  document.addEventListener("click", (event) => {
-    if (themeMenu.hidden) return;
-    if (themeMenu.contains?.(event.target) || themeSwitcher.contains?.(event.target)) return;
-    closeThemeMenu();
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeThemeMenu();
-  });
-  themeToggle.addEventListener("click", (event) => {
-    event.stopPropagation();
-    themesExpanded = !themesExpanded;
-    themeList.hidden = !themesExpanded;
-    themeToggle.querySelector("span:last-child").textContent = themesExpanded ? "−" : "+";
-    themeToggle.setAttribute("aria-expanded", themesExpanded ? "true" : "false");
-  });
+  }
+  for (const tab of themeTabs) {
+    tab.addEventListener("click", (event) => {
+      event.stopPropagation();
+      selectThemeCategory(tab.dataset.category);
+    });
+    tab.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const index = themeTabs.indexOf(tab);
+      const step = event.key === "ArrowRight" ? 1 : -1;
+      const next = themeTabs[(index + step + themeTabs.length) % themeTabs.length];
+      selectThemeCategory(next.dataset.category);
+      next.focus?.();
+    });
+  }
   themeList.addEventListener("click", (event) => {
     const del = event.target.closest("[data-theme-delete]");
     if (del) {
@@ -863,8 +807,6 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     const item = event.target.closest("[data-theme-id]");
     if (!item) return;
     const targetThemeId = item.getAttribute("data-theme-id") || "";
-    themeList.hidden = true;
-    themeToggle.setAttribute("aria-expanded", "false");
     void run(async () => {
       const result = await request("/__beauticode/ui/theme/use", {
         method: "POST",

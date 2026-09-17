@@ -118,7 +118,12 @@ test("plugin injects the console script that joins the settings dialog", async (
   assert.match(source, /兼容模式会复制媒体文件/);
   assert.match(source, /managedUploadAllowed/);
   assert.match(source, /importPolicyReady/);
-  assert.match(source, /将复制一份托管文件/);
+  // The rows describe what they do; how the host stores the file is not the
+  // user's problem, so no policy wording reaches the served page.
+  assert.match(source, /支持常见图片格式/);
+  assert.match(source, /仅支持 MP4/);
+  assert.doesNotMatch(source, /零复制播放/);
+  assert.doesNotMatch(source, /直接引用本地文件/);
   assert.match(source, /正在确认导入方式/);
   assert.match(source, /45_000/);
   assert.match(source, /背景操作超时，控件已恢复/);

@@ -685,8 +685,6 @@ test("console keeps the picker closed until importPolicy arrives", async () => {
   const page = pageEl(document);
   const imageButton = page.querySelector('[data-act="image"]');
   assert.equal(imageButton.disabled, true, "import stays locked until /ui/status reports a policy");
-  assert.equal(page.querySelector(".bc-page-intro").textContent, "给 DSH 换一张背景图片或视频。");
-  assert.equal(page.querySelector('[data-copy="image"]').textContent, "JPG / PNG / WebP / AVIF");
 
   imageButton.click();
   assert.equal(filePicker(document).clicks ?? 0, 0, "no browser picker before the policy is known");
@@ -698,7 +696,30 @@ test("console keeps the picker closed until importPolicy arrives", async () => {
   assert.match(page.querySelector(".bc-msg").textContent, /正在确认导入方式/);
 });
 
-test("console copy follows importPolicy once status lands", async () => {
+test("console descriptions stay plain and free of host detail", async () => {
+  const document = createConsoleDocument();
+  mountSettingsDialog(document);
+  await loadConsole(document);
+
+  const markup = pageEl(document).innerHTML;
+  for (const line of [
+    "给 DSH 换一张背景图或视频。",
+    "支持常见图片格式",
+    "仅支持 MP4",
+    "隐藏浏览器标签页和地址栏，Esc 退出",
+    "压暗背景，让内容更清楚",
+    "播放视频背景的声音",
+    "浏览并一键应用在线皮肤",
+    "恢复 DSH 默认外观",
+  ]) {
+    assert.ok(markup.includes(line), `the page keeps the plain line: ${line}`);
+  }
+  for (const jargon of ["托管", "引用", "零复制", "复制后播放", "复制一份", "主媒体"]) {
+    assert.equal(markup.includes(jargon), false, `no host detail leaks into the copy: ${jargon}`);
+  }
+});
+
+test("console unlocks import once a managed-upload policy lands", async () => {
   const document = createConsoleDocument();
   mountSettingsDialog(document);
   await loadConsole(document, {
@@ -715,12 +736,14 @@ test("console copy follows importPolicy once status lands", async () => {
 
   const page = pageEl(document);
   assert.equal(page.querySelector('[data-act="image"]').disabled, false);
-  assert.match(page.querySelector(".bc-page-intro").textContent, /复制一份托管副本/);
-  assert.match(page.querySelector('[data-copy="image"]').textContent, /将复制一份托管文件/);
-  assert.match(page.querySelector('[data-copy="video"]').textContent, /将复制后播放/);
+  assert.equal(
+    page.innerHTML.includes("托管"),
+    false,
+    "unlocking import must not reintroduce how the host stores the file",
+  );
 });
 
-test("console copy describes local reference when the host picker is required", async () => {
+test("console unlocks import under a native-picker-only policy too", async () => {
   const document = createConsoleDocument();
   mountSettingsDialog(document);
   await loadConsole(document, {
@@ -736,9 +759,12 @@ test("console copy describes local reference when the host picker is required", 
   await flushAsync();
 
   const page = pageEl(document);
-  assert.match(page.querySelector(".bc-page-intro").textContent, /只做引用/);
-  assert.match(page.querySelector('[data-copy="image"]').textContent, /直接引用本地文件/);
-  assert.match(page.querySelector('[data-copy="video"]').textContent, /零复制播放/);
+  assert.equal(page.querySelector('[data-act="image"]').disabled, false);
+  assert.equal(
+    page.innerHTML.includes("引用"),
+    false,
+    "and the native-picker policy must not bring its own jargon back",
+  );
 });
 
 test("console disables its controls and reports progress while busy", async () => {

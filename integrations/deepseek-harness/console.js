@@ -90,30 +90,30 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
   page.hidden = true;
   page.innerHTML =
     '<h2 class="bc-page-title">背景</h2>' +
-    '<p class="bc-page-intro">给 DSH 换一张背景图片或视频。</p>' +
+    '<p class="bc-page-intro">给 DSH 换一张背景图或视频。</p>' +
     '<p class="bc-status">未就绪</p>' +
     '<p class="bc-msg" role="status" aria-live="polite" hidden></p>' +
     '<div class="bc-group">' +
     '<div class="bc-row"><div class="bc-row-text">' +
     '<span class="bc-row-title">导入图片</span>' +
-    '<span class="bc-row-desc" data-copy="image">JPG / PNG / WebP / AVIF</span>' +
+    '<span class="bc-row-desc" data-desc="image">支持常见图片格式</span>' +
     "</div>" +
     '<div class="bc-control"><button type="button" class="bc-btn bc-pill" data-act="image">选择图片</button></div></div>' +
     '<div class="bc-row"><div class="bc-row-text">' +
     '<span class="bc-row-title">导入视频</span>' +
-    '<span class="bc-row-desc" data-copy="video">MP4</span>' +
+    '<span class="bc-row-desc" data-desc="video">仅支持 MP4</span>' +
     "</div>" +
     '<div class="bc-control"><button type="button" class="bc-btn bc-pill" data-act="video">选择视频</button></div></div>' +
     "</div>" +
     '<div class="bc-group">' +
     '<div class="bc-row" data-row="fullscreen"><div class="bc-row-text">' +
     '<span class="bc-row-title">全屏显示</span>' +
-    '<span class="bc-row-desc">隐藏浏览器标签页与地址栏；按 Esc 退出</span>' +
+    '<span class="bc-row-desc">隐藏浏览器标签页和地址栏，Esc 退出</span>' +
     "</div>" +
     '<div class="bc-control"><button type="button" class="bc-btn bc-pill" data-act="fullscreen" aria-pressed="false">进入全屏</button></div></div>' +
     '<div class="bc-row"><div class="bc-row-text">' +
     '<span class="bc-row-title">背景阴影</span>' +
-    '<span class="bc-row-desc">压暗背景，让前景内容更清楚</span>' +
+    '<span class="bc-row-desc">压暗背景，让内容更清楚</span>' +
     "</div>" +
     '<div class="bc-control">' +
     '<span class="bc-slider">' +
@@ -124,7 +124,7 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     "</div></div>" +
     '<div class="bc-row"><div class="bc-row-text">' +
     '<span class="bc-row-title">声音</span>' +
-    '<span class="bc-row-desc">视频背景播放时输出声音</span>' +
+    '<span class="bc-row-desc">播放视频背景的声音</span>' +
     "</div>" +
     '<div class="bc-control"><button type="button" class="bc-btn bc-pill" data-act="sound" aria-pressed="false">已关</button></div></div>' +
     "</div>" +
@@ -135,12 +135,12 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     '<div class="bc-group">' +
     '<div class="bc-row"><div class="bc-row-text">' +
     '<span class="bc-row-title">打开皮肤中心</span>' +
-    '<span class="bc-row-desc">浏览在线皮肤，一键安装并应用</span>' +
+    '<span class="bc-row-desc">浏览并一键应用在线皮肤</span>' +
     "</div>" +
     '<div class="bc-control"><button type="button" class="bc-btn bc-pill" data-act="gallery">打开</button></div></div>' +
     '<div class="bc-row"><div class="bc-row-text">' +
     '<span class="bc-row-title">清除背景</span>' +
-    '<span class="bc-row-desc">移除当前背景，恢复默认外观</span>' +
+    '<span class="bc-row-desc">恢复 DSH 默认外观</span>' +
     "</div>" +
     '<div class="bc-control"><button type="button" class="bc-btn bc-pill" data-act="clear">清除</button></div></div>' +
     "</div>";
@@ -162,9 +162,6 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
   const themeToggle = page.querySelector(".bc-theme-toggle");
   const themeList = page.querySelector(".bc-theme-list");
   const msgEl = page.querySelector(".bc-msg");
-  const introEl = page.querySelector(".bc-page-intro");
-  const imageDescEl = page.querySelector('[data-copy="image"]');
-  const videoDescEl = page.querySelector('[data-copy="video"]');
   const imageBtn = page.querySelector('[data-act="image"]');
   const videoBtn = page.querySelector('[data-act="video"]');
   const AUTO_DIM_PERCENT = 42;
@@ -328,24 +325,6 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     msgEl.textContent = text;
   }
 
-  function renderImportCopy() {
-    if (!importPolicyReady) {
-      introEl.textContent = "给 DSH 换一张背景图片或视频。";
-      imageDescEl.textContent = "JPG / PNG / WebP / AVIF";
-      videoDescEl.textContent = "MP4";
-      return;
-    }
-    if (managedUploadAllowed) {
-      introEl.textContent = "给 DSH 换一张背景图片或视频。所选文件会复制一份托管副本。";
-      imageDescEl.textContent = "JPG / PNG / WebP / AVIF，将复制一份托管文件";
-      videoDescEl.textContent = "MP4，将复制后播放";
-      return;
-    }
-    introEl.textContent = "给 DSH 换一张背景图片或视频。本地文件只做引用，不复制主媒体。";
-    imageDescEl.textContent = "JPG / PNG / WebP / AVIF，直接引用本地文件";
-    videoDescEl.textContent = "MP4，零复制播放";
-  }
-
   function syncImportControls() {
     const locked = busy || !importPolicyReady;
     imageBtn.disabled = locked;
@@ -362,8 +341,7 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
       importPolicyReady = true;
       managedUploadAllowed = data.importPolicy.managedUploadAllowed === true;
     }
-    renderImportCopy();
-    syncImportControls();
+      syncImportControls();
     const label =
       data.atmosphere === "gallery"
         ? "画窗"
@@ -701,7 +679,6 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
   videoBtn.addEventListener("click", () => {
     startImport("video");
   });
-  renderImportCopy();
   syncImportControls();
   page.querySelector('[data-act="gallery"]').addEventListener("click", () => {
     // No setPageActive(false): the gallery is a fixed overlay above the dialog.

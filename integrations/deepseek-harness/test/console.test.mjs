@@ -606,6 +606,14 @@ test("console page follows the settings row recipe", async () => {
   const html = page.innerHTML;
   // innerHTML parsing is flat in this harness, so nesting is asserted textually.
   assert.ok(html.indexOf('class="bc-row-text"') < html.indexOf('data-act="media"'));
+  // The import control belongs with the list of backgrounds it produces: it
+  // sits immediately above the saved list, with no other row in between.
+  assert.ok(
+    html.indexOf('data-act="media"') < html.indexOf("bc-themes"),
+    "import is offered above the saved backgrounds",
+  );
+  const between = html.slice(html.indexOf('data-act="media"'), html.indexOf("bc-themes"));
+  assert.doesNotMatch(between, /bc-row-title/, "and nothing else stands between them");
   assert.equal(page.querySelectorAll(".bc-row-title").length, 6);
   assert.equal(page.querySelectorAll(".bc-row-desc").length, 6);
   assert.ok(page.querySelector('[data-act="sound"]'));

@@ -96,13 +96,6 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     '<p class="bc-page-intro">给 DSH 换一张背景图或视频。</p>' +
     '<p class="bc-msg" role="status" aria-live="polite" hidden></p>' +
     '<div class="bc-group">' +
-    '<div class="bc-row"><div class="bc-row-text">' +
-    '<span class="bc-row-title">导入背景</span>' +
-    '<span class="bc-row-desc" data-desc="media">支持常见图片格式和 MP4 视频</span>' +
-    "</div>" +
-    '<div class="bc-control"><button type="button" class="bc-btn bc-pill" data-act="media">选择文件</button></div></div>' +
-    "</div>" +
-    '<div class="bc-group">' +
     '<div class="bc-row" data-row="fullscreen"><div class="bc-row-text">' +
     '<span class="bc-row-title">全屏显示</span>' +
     '<span class="bc-row-desc">隐藏浏览器标签页和地址栏，Esc 退出</span>' +
@@ -124,6 +117,13 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     '<span class="bc-row-desc">播放视频背景的声音</span>' +
     "</div>" +
     '<div class="bc-control"><button type="button" class="bc-btn bc-pill" data-act="sound" aria-pressed="false">已关</button></div></div>' +
+    "</div>" +
+    '<div class="bc-group">' +
+    '<div class="bc-row"><div class="bc-row-text">' +
+    '<span class="bc-row-title">导入背景</span>' +
+    '<span class="bc-row-desc" data-desc="media">支持常见图片格式和 MP4 视频</span>' +
+    "</div>" +
+    '<div class="bc-control"><button type="button" class="bc-btn bc-pill" data-act="media">选择文件</button></div></div>' +
     "</div>" +
     '<div class="bc-group bc-themes" hidden>' +
     '<button type="button" class="bc-theme-toggle" aria-expanded="true"><span>SAVED / 00</span><span>−</span></button>' +

@@ -18,7 +18,6 @@
 #beauticode-console-page *{box-sizing:border-box;font-family:inherit}
 #beauticode-console-page .bc-page-title{margin:0;font-size:18px;font-weight:600;line-height:26px}
 #beauticode-console-page .bc-page-intro{margin:0;color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:20px}
-#beauticode-console-page .bc-status{margin:0;color:var(--dsw-alias-label-caption);font-size:12px;line-height:18px}
 #beauticode-console-page .bc-group{display:flex;flex-direction:column}
 #beauticode-console-page .bc-row{display:flex;align-items:center;gap:8px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}
 #beauticode-console-page .bc-row-text{display:flex;flex-direction:column;flex:1;gap:4px;min-width:0;padding-right:48px}
@@ -95,7 +94,6 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
   page.innerHTML =
     '<h2 class="bc-page-title">背景</h2>' +
     '<p class="bc-page-intro">给 DSH 换一张背景图或视频。</p>' +
-    '<p class="bc-status">未就绪</p>' +
     '<p class="bc-msg" role="status" aria-live="polite" hidden></p>' +
     '<div class="bc-group">' +
     '<div class="bc-row"><div class="bc-row-text">' +
@@ -151,7 +149,6 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
 
   document.body.append(fileInput);
 
-  const statusEl = page.querySelector(".bc-status");
   const soundBtn = page.querySelector('[data-act="sound"]');
   const dimSlider = page.querySelector(".bc-dim-slider");
   const dimValue = page.querySelector(".bc-dim-value");
@@ -331,7 +328,7 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
 
   function renderStatus(data) {
     if (!data?.ok) {
-      statusEl.textContent = data?.error || "未就绪";
+      if (data?.error) showMessage(data.error);
       syncImportControls();
       return;
     }
@@ -340,20 +337,6 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
       managedUploadAllowed = data.importPolicy.managedUploadAllowed === true;
     }
       syncImportControls();
-    const label =
-      data.atmosphere === "gallery"
-        ? "画窗"
-        : data.media === "video"
-          ? "视频"
-          : data.media === "image"
-            ? "图片"
-            : "无背景";
-    const sourceLabel =
-      data.sourceMode === "local"
-        ? "本地引用"
-        : data.sourceMode === "managed"
-          ? "托管副本"
-          : "";
     if (typeof data.themeId === "string" && data.themeId) {
       currentThemeId = data.themeId;
     } else if (data.atmosphere === "gallery") {
@@ -366,10 +349,6 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
     soundBtn.textContent = muted ? "已关" : "已开";
     soundBtn.setAttribute("aria-pressed", muted ? "false" : "true");
     const themes = Array.isArray(data.themes) ? data.themes : [];
-    const selected = themes.find((theme) => theme.id === currentThemeId);
-    const currentLabel = selected?.name || label;
-    const compactSource = sourceLabel === "本地引用" ? "本地" : sourceLabel === "托管副本" ? "托管" : "已应用";
-    statusEl.textContent = `${currentLabel} / ${compactSource}`;
     if (themes.length === 0) {
       themesBox.hidden = true;
       themeList.innerHTML = "";

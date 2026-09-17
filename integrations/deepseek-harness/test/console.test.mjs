@@ -777,6 +777,33 @@ test("console unlocks import under a native-picker-only policy too", async () =>
   );
 });
 
+/**
+ * The page used to print the active background twice: a status row naming the
+ * current theme, and the message under it reporting the last action. The row is
+ * gone, so the message is the only place the page speaks - which means a status
+ * failure has to land there rather than only in the removed row.
+ */
+test("the page reports the applied state in exactly one place", async () => {
+  const document = createConsoleDocument();
+  mountSettingsDialog(document);
+  await loadConsole(document, {
+    fetch: routedFetch({
+      "/__beauticode/ui/status": () => okJson({ ok: false, error: "背景服务没有响应" }),
+    }),
+  });
+
+  navCell(document).click();
+  await flushAsync();
+
+  const page = pageEl(document);
+  assert.equal(
+    page.innerHTML.includes("bc-status"),
+    false,
+    "no row repeats the active theme next to the message",
+  );
+  assert.match(page.querySelector(".bc-msg").textContent, /背景服务没有响应/);
+});
+
 test("console disables its controls and reports progress while busy", async () => {
   const document = createConsoleDocument();
   mountSettingsDialog(document);

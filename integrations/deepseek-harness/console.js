@@ -35,18 +35,18 @@
 #beauticode-console-page .bc-dim-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;margin-top:-5px;border:.5px solid var(--dsw-alias-border-l4);border-radius:50%;background:var(--dsw-alias-bg-layer-1);box-shadow:var(--dsw-shadow-lv1);cursor:pointer}
 #beauticode-console-page .bc-dim-value{min-width:2.6em;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;font-variant-numeric:tabular-nums;text-align:right}
 #beauticode-console-page .bc-theme-toggle{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;height:auto;padding:12px 0;border:0;background:0 0;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;font-weight:600;line-height:18px;letter-spacing:.06em;text-align:left}
-/* Rows follow the model picker's option list: no separators, a rounded row that
-   fills on hover, and a check mark for the active entry instead of a filled
-   row; secondary text is plain label-caption rather than a coloured pill. */
-#beauticode-console-page .bc-theme-list{display:flex;flex-direction:column;gap:2px;max-height:280px;padding:4px 0;overflow:auto;scrollbar-width:thin}
-#beauticode-console-page .bc-theme-row{display:flex;align-items:center;gap:4px}
-#beauticode-console-page .bc-theme-item{cursor:pointer;display:flex;align-items:center;gap:8px;flex:1;min-width:0;min-height:38px;padding:6px 8px;border:0;border-radius:10px;background:0 0;color:var(--dsw-alias-label-primary);font:inherit;text-align:left}
-#beauticode-console-page .bc-theme-item:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
+/* Rows follow the model rows in Settings -> 模型: each saved background is a
+   card wrapped in a rounded outline, the source reads as a bordered tag, and
+   the background in use carries the same 8px green state dot those rows use. */
+#beauticode-console-page .bc-theme-list{display:flex;flex-direction:column;gap:8px;max-height:280px;margin:12px 0 0;padding:0;overflow:auto;scrollbar-width:thin}
+#beauticode-console-page .bc-theme-row{box-sizing:border-box;display:flex;align-items:center;gap:8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:16px;background:0 0;padding:12px 14px}
+#beauticode-console-page .bc-theme-row:hover{background:var(--dsw-alias-interactive-bg-hover)}
+#beauticode-console-page .bc-theme-item{cursor:pointer;display:flex;align-items:center;gap:6px;flex:1;min-width:0;padding:0;border:0;border-radius:8px;background:0 0;color:var(--dsw-alias-label-primary);font:inherit;text-align:left}
 #beauticode-console-page .bc-theme-item:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3);outline:none}
-#beauticode-console-page .bc-theme-name{flex:1;min-width:0;font-size:14px;font-weight:500;line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#beauticode-console-page .bc-source{flex:none;color:var(--dsw-alias-label-caption);font-size:12px;line-height:18px}
-#beauticode-console-page .bc-theme-check{flex:0 0 18px;display:grid;place-items:center;color:var(--dsw-alias-label-primary)}
-#beauticode-console-page .bc-theme-del{cursor:pointer;flex:none;box-sizing:border-box;width:28px;height:28px;padding:0;border:0;border-radius:6px;background:0 0;color:var(--dsw-alias-label-tertiary);font-size:15px;line-height:28px;text-align:center}
+#beauticode-console-page .bc-theme-name{min-width:0;font-size:14px;font-weight:500;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#beauticode-console-page .bc-source{flex:none;border:.5px solid var(--dsw-alias-border-l3);color:var(--dsw-alias-label-secondary);border-radius:4px;padding:1px 6px;font-size:11px;line-height:16px}
+#beauticode-console-page .bc-theme-dot{box-sizing:border-box;corner-shape:round;border-radius:50%;flex:none;display:inline-block;width:8px;height:8px;background:var(--dsw-alias-state-success-primary)}
+#beauticode-console-page .bc-theme-del{cursor:pointer;flex:none;box-sizing:border-box;width:28px;height:28px;margin-left:auto;padding:0;border:0;border-radius:6px;background:0 0;color:var(--dsw-alias-label-tertiary);font-size:15px;line-height:28px;text-align:center}
 #beauticode-console-page .bc-theme-del:hover:not(:disabled){color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-interactive-bg-hover-danger)}
 #beauticode-console-page .bc-theme-del:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3);outline:none}
 #beauticode-console-page .bc-btn:disabled,#beauticode-console-page .bc-theme-toggle:disabled,#beauticode-console-page .bc-theme-item:disabled,#beauticode-console-page .bc-theme-del:disabled{opacity:.38;cursor:default}
@@ -371,14 +371,12 @@ div[role="dialog"][aria-modal="true"][data-bc-page="on"] nav button[aria-current
           theme.sourceMode === "local" ? "本地" : theme.bundled ? "内置" : "托管";
         const selected = theme.id === currentThemeId;
         const current = selected ? ' aria-current="true"' : "";
-        // The check cell is always laid out so names stay aligned; the glyph
-        // itself only appears on the active entry.
-        const check = `<span class="bc-theme-check">${
-          selected
-            ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.4 6.6 11.5 12.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-            : ""
-        }</span>`;
-        return `<div class="bc-theme-row"><button type="button" class="bc-theme-item" data-theme-id="${escapeAttr(theme.id)}"${current}><span class="bc-theme-name">${escapeText(theme.name)}</span><span class="bc-source">${source}</span>${check}</button>${del}</div>`;
+        // The one in use is marked the way a configured model is marked: a
+        // small green dot right after the name and its tag, nothing else.
+        const dot = selected
+          ? '<span class="bc-theme-dot" role="img" aria-label="当前使用" title="当前使用"></span>'
+          : "";
+        return `<div class="bc-theme-row"><button type="button" class="bc-theme-item" data-theme-id="${escapeAttr(theme.id)}"${current}><span class="bc-theme-name">${escapeText(theme.name)}</span><span class="bc-source">${source}</span>${dot}</button>${del}</div>`;
       })
       .join("");
     themeToggle.innerHTML = `<span>SAVED / ${String(themes.length).padStart(2, "0")}</span><span>${themesExpanded ? "−" : "+"}</span>`;

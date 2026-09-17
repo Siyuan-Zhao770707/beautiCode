@@ -818,7 +818,12 @@ test("the page reports the applied state in exactly one place", async () => {
  * fills on hover, and a check mark on the active entry instead of a filled row
  * plus a coloured source pill.
  */
-test("the saved list marks the active background like the model list does", async () => {
+/**
+ * Saved backgrounds are listed the way Settings -> 模型 lists models: every entry
+ * is a card wrapped in a rounded outline, the source sits in a bordered tag,
+ * and the one in use carries the same small green state dot after its name.
+ */
+test("the saved list marks the background in use like a configured model", async () => {
   const document = createConsoleDocument();
   mountSettingsDialog(document);
   const runtime = await loadConsole(document, {
@@ -844,18 +849,26 @@ test("the saved list marks the active background like the model list does", asyn
   assert.match(markup, /<span class="bc-theme-name">怪诞小镇<\/span>/);
   assert.match(markup, /data-theme-id="t2"[^>]*aria-current="true"/);
   assert.equal(
-    (markup.match(/<svg/g) ?? []).length,
+    (markup.match(/bc-theme-dot/g) ?? []).length,
     1,
-    "only the active entry carries the check mark",
+    "only the background in use carries the green dot",
   );
   assert.match(
     markup,
-    /<span class="bc-theme-check"><\/span><\/button>/,
-    "every row still reserves the check cell so names line up",
+    /<span class="bc-theme-dot" role="img" aria-label="当前使用"/,
+    "and it says what it means for assistive tech",
   );
-  // And the old look is gone: no filled active row, no accent-coloured pill.
-  assert.doesNotMatch(runtime.source, /bc-theme-item\[aria-current="true"\]\{background/);
-  assert.doesNotMatch(runtime.source, /bc-source\{[^}]*background:var\(--dsw-specific/);
+  assert.doesNotMatch(markup, /bc-theme-check/, "the check mark is not the shipped pattern");
+  // The card, the tag and the dot all take the shipped metrics.
+  assert.match(
+    runtime.source,
+    /\.bc-theme-row\{[^}]*border:\.5px solid var\(--dsw-alias-border-l4\)[^}]*border-radius:16px/,
+  );
+  assert.match(runtime.source, /\.bc-source\{[^}]*border:\.5px solid var\(--dsw-alias-border-l3\)/);
+  assert.match(
+    runtime.source,
+    /\.bc-theme-dot\{[^}]*width:8px;height:8px;background:var\(--dsw-alias-state-success-primary\)/,
+  );
 });
 
 test("console disables its controls and reports progress while busy", async () => {

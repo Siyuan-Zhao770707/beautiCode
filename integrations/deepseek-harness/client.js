@@ -67,6 +67,7 @@ html[data-bc-active="true"] body{
   --dsw-specific-sidebar-fill:color-mix(in srgb,var(--dsw-static-neutral-bluish-900) var(--bc-surface-mix),transparent);
   --dsw-specific-input-major:var(--dsw-specific-sidebar-fill);
   --dsw-alias-bg-layer-3:color-mix(in srgb,var(--dsw-static-neutral-bluish-800) var(--bc-surface-mix),transparent);
+  --dsw-specific-menu:color-mix(in srgb,var(--dsw-static-neutral-bluish-800) var(--bc-surface-mix),transparent);
   --dsw-specific-tip:color-mix(in srgb,var(--dsw-static-neutral-bluish-800) var(--bc-surface-mix),transparent);
   --dsw-alias-bg-module-platform:color-mix(in srgb,var(--dsw-static-neutral-bluish-800) var(--bc-surface-mix),transparent);
   --dsw-specific-selector:color-mix(in srgb,var(--dsw-static-neutral-bluish-800) var(--bc-surface-mix),transparent);
@@ -95,6 +96,7 @@ html[data-bc-resolved-tone="light"][data-bc-active="true"] body{
   --dsw-alias-bg-overlay:rgba(255,255,255,.14);
   --dsw-specific-sidebar-fill:color-mix(in srgb,var(--dsw-static-neutral-bluish-50) var(--bc-surface-mix),transparent);
   --dsw-alias-bg-layer-3:color-mix(in srgb,var(--dsw-static-neutral-bluish-00) var(--bc-surface-mix),transparent);
+  --dsw-specific-menu:color-mix(in srgb,var(--dsw-static-neutral-bluish-60) var(--bc-surface-mix),transparent);
   --dsw-specific-tip:color-mix(in srgb,var(--dsw-static-neutral-bluish-60) var(--bc-surface-mix),transparent);
   --dsw-alias-bg-module-platform:color-mix(in srgb,var(--dsw-static-neutral-bluish-60) var(--bc-surface-mix),transparent);
   --dsw-specific-selector:color-mix(in srgb,var(--dsw-static-neutral-bluish-60) var(--bc-surface-mix),transparent);
@@ -129,9 +131,50 @@ html[data-bc-resolved-tone="light"][data-bc-active="true"] [data-presented-file]
   --deliverable-fill:color-mix(in srgb,var(--dsw-static-neutral-50) var(--bc-content-mix),transparent);
   --deliverable-hover:color-mix(in srgb,var(--dsw-static-neutral-100) var(--bc-content-mix),transparent);
 }
-/* DSH renders the dropdown menus through --dsw-specific-menu, which it defines
-   as var(--dsw-alias-bg-layer-3), so the layer override above already carries
-   them onto the same tier. */
+/* A code file preview turns the WHOLE right column into one code well, and at
+   column scale the code-well tier reads as a flat near-black slab on a dark
+   wallpaper. The preview is dsh-client-ui-sidebar-documentpreview, whose own
+   950-character sheet re-expresses --dsl-code-block-background: transparent on
+   .Java6a_code, so the tier that actually paints the column is
+   --dsw-alias-markdown-code-block — the CONTENT tier (bluish-900 at
+   --bc-content-mix, i.e. 72% of a near-black while a turn is running). That
+   tier is right for a code block inside a transcript, and this rule does not
+   touch those: it is scoped to the preview only, so transcript code keeps the
+   86%/72% readability trade-off intact.
+   Re-expressed here at the dock-chrome tier instead — the same color and mix
+   the layer-3 alias above already uses, so the column sits on the tier of the
+   chrome around it rather than on the code tier. At 86% of bluish-800 the
+   composited color is RGB(22,26,34) against RGB(12,14,19) for 72% of
+   bluish-900 over the same backdrop: lighter in both phases of the run, and
+   lighter in the light tone too (bluish-00 over bluish-50).
+   The tier is set on both the preview root and the code-preview node, because
+   either one may be the ancestor that the painted element resolves through.
+   Keyed on the preview's own data attributes because its class names are
+   build-hashed (Java6a / 17p4l / P3OORG all change between DSH versions), and
+   [data-code-block-content] is NOT preview-exclusive — the shell uses it once.
+   Revert is this whole block. */
+html[data-bc-active="true"] [data-document-preview]{
+  background:var(--dsw-alias-bg-base);
+}
+html[data-bc-active="true"] [data-document-preview],
+html[data-bc-active="true"] [data-code-preview]{
+  --dsw-alias-markdown-code-block:color-mix(in srgb,var(--dsw-static-neutral-bluish-800) var(--bc-surface-mix),transparent);
+}
+html[data-bc-resolved-tone="light"][data-bc-active="true"] [data-document-preview],
+html[data-bc-resolved-tone="light"][data-bc-active="true"] [data-code-preview]{
+  --dsw-alias-markdown-code-block:color-mix(in srgb,var(--dsw-static-neutral-bluish-00) var(--bc-surface-mix),transparent);
+}
+/* DSH renders every dropdown and popover through --dsw-specific-menu, which it
+   declares as var(--dsw-alias-bg-layer-3). Overriding the layer-3 alias above is
+   NOT enough: a custom property's var() is substituted where the property is
+   DECLARED, and the substituted value is what inherits, so a --dsw-specific-menu
+   frozen at the html level never sees a body-level --dsw-alias-bg-layer-3.
+   Measured with :root{--base:#0f1115;--derived:var(--base)} + body{--base:10%}:
+   var(--base) -> rgba(17,20,27,.1) while var(--derived) -> rgb(15,17,21). That
+   left 模型选择 / 斜杠命令 / @触发 / 后台任务 and the rest of the menus opaque
+   while everything around them was translucent. Re-expressed on body like the
+   rest, on DSH's own tier, so the menus stay exactly as opaque relative to the
+   surfaces beneath them as DSH intends. */
 html[data-bc-active="true"]:has(#root [data-phase="active"]) body,
 html[data-bc-active="true"]:has(#root [data-phase="settling"]) body{
   --bc-surface-mix:86%;

@@ -214,7 +214,7 @@ fetch('/apply?id='+c.dataset.id).then(function(r){return r.json()}).then(functio
 }
 
 function startGalleryServer(applyFn) {
-  const server = createServer((req, res) => {
+  const galleryHandler = (req, res) => {
     const u = new URL(req.url, 'http://127.0.0.1');
     res.setHeader('access-control-allow-origin', '*');
     res.setHeader('content-type', 'application/json; charset=utf-8');
@@ -243,18 +243,22 @@ function startGalleryServer(applyFn) {
     }
     res.statusCode = 404;
     res.end(JSON.stringify({ ok: false, error: 'not found' }));
-  });
-  for (let p = GALLERY_PORT_BASE; p < GALLERY_PORT_BASE + 9; p++) {
-    try {
-      server.listen(p, '127.0.0.1');
-      galleryPort = p;
-      log.info(`皮肤商城 ✓ http://127.0.0.1:${p}/beauticode/gallery（仅本机）`);
-      return;
-    } catch (e) {
-      if (e.code !== 'EADDRINUSE') throw e;
-    }
-  }
-  log.warn('皮肤商城端口耗尽（9337-9345），未启动');
+  };
+  let p = GALLERY_PORT_BASE;
+  const tryNext = () => {
+    if (p >= GALLERY_PORT_BASE + 9) { log.warn('皮肤商城端口耗尽（9337-9345），未启动（其余功能不受影响）'); return; }
+    const port = p++;
+    const server = createServer(galleryHandler);
+    server.once('error', (e) => {
+      if (e.code === 'EADDRINUSE') { log.info(`皮肤商城端口 ${port} 被占，换下一个…`); tryNext(); }
+      else { log.warn('皮肤商城服务错误：', e.message); }
+    });
+    server.listen(port, '127.0.0.1', () => {
+      galleryPort = port;
+      log.info(`皮肤商城 ✓ http://127.0.0.1:${port}/beauticode/gallery（仅本机）`);
+    });
+  };
+  tryNext();
 }
 
 // ── 完整应用序列 ──────────────────────────────────────────────────────

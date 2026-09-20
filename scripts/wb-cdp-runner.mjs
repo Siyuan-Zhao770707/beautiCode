@@ -155,9 +155,11 @@ const CENTER_URL = (() => {
     return JSON.parse(fs.readFileSync(path.join(REPO, 'integrations', 'deepseek-harness', 'skin-center.json'), 'utf8')).url || null;
   } catch { return null; }
 })();
-const SKINS_DIR = process.platform === 'win32'
-  ? path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'beauticode', 'skins')
-  : path.join(process.env.HOME || '', 'Library', 'Application Support', 'beauticode', 'skins');
+const DATA_DIR = process.platform === 'win32'
+  ? path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'beauticode')
+  : path.join(process.env.HOME || '', 'Library', 'Application Support', 'beauticode');
+const SKINS_DIR = path.join(DATA_DIR, 'skins');
+const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const GALLERY_MEDIA = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
   '.gif': 'image/gif', '.bmp': 'image/bmp', '.avif': 'image/avif',
@@ -362,6 +364,16 @@ return 'default-applied';
     if (wp === 'default-applied') log.info('默认壁纸 ✓（舞台原本无媒体）');
     else log.debug('默认壁纸：' + wp);
   }
+
+  // 8) 记忆恢复：有 state.json 就把壁纸 + 三滑杆恢复到上次退出时的样子
+  //    （state.wallpaper=null 且 cleared=true = 用户上次主动清除 → 连默认壁纸也撤掉）
+  if (fs.existsSync(STATE_FILE)) {
+    try {
+      const st = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+      await evaluate(c, 'window.__bcRestoreState && window.__bcRestoreState(' + JSON.stringify(JSON.stringify(st)) + ')');
+      log.info(`记忆恢复 ✓（壁纸=${st.wallpaper ? path.basename(st.wallpaper) : '已清除'}，阴影=${st.dim}% 磨砂=${st.blur}% 透明度=${st.alpha}%）`);
+    } catch (e) { log.warn('记忆恢复失败：', e.message); }
+  }
   return { theme, tokens: (scan.rows || []).length, ui };
 }
 
@@ -387,6 +399,7 @@ function startWatcher(c, state) {
         nav: !!document.querySelector('.conversation-list-tabs'),
         theme: document.documentElement.className,
         panel: !!document.querySelector('.sidebar-next'),
+        persist: window.__bcPersistGet ? window.__bcPersistGet() : null
       })`));
       const fpTheme = String(v.theme || '');
       if (v.nav && !v.entry) {
@@ -410,6 +423,40 @@ function startWatcher(c, state) {
         }, 1500);
       }
       state.panelOpen = panelOpen;
+      // ── 记忆调和：每 tick 核对（幂等）——React 重挂/SPA 导航随时可能把舞台打回默认 ──
+      let blankLive = true;
+      try {
+        const live = v.persist ? JSON.parse(v.persist) : null;
+        blankLive = !live || (!live.wallpaper && !live.cleared && !live.blob && live.dim == null && live.blur == null && live.alpha == null);
+      } catch { blankLive = true; }
+      let disk = null;
+      try { disk = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { /* 无存档 */ }
+      const hasArchive = !!(disk && (disk.wallpaper || disk.cleared));
+
+      if (hasArchive && disk.wallpaper && blankLive) {
+        // 纯兜底：只在页面【真空白】（全 null 且无 blob 标记 = 刚重装/刚刷新）时
+        // 恢复存档。非空白 = 用户的当前状态（拖动的滑杆、导入的 blob），绝不碰——
+        // 每 tick 无条件 restore 会把用户刚拖的滑杆拽回存档值、把 blob 媒体顶掉
+        //（实测：面板参数"隔一会儿变一下"的真凶）
+        try {
+          await evaluate(c, 'window.__bcRestoreState && window.__bcRestoreState(' + JSON.stringify(disk) + ')');
+        } catch (e) { log.debug('记忆调和：', e.message); }
+      } else if (hasArchive && disk.cleared && blankLive) {
+        // 清除态 + 页面空白（刚重装）→ 恢复清除态（撤掉默认壁纸）
+        await evaluate(c, 'window.__bcRestoreState && window.__bcRestoreState(' + JSON.stringify(JSON.stringify(disk)) + ')');
+        log.info('记忆调和 ✓（清除态恢复）');
+      }
+
+      // 状态写盘：仅在页面状态真实变化（非空白样本）时覆盖存档
+      // （空白样本 = 刚重装/刚刷新的初始态，覆盖会把已存壁纸冲掉——实测踩过）
+      if (v.persist && v.persist !== state.lastPersist) {
+        if (!blankLive) {
+          fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
+          fs.writeFileSync(STATE_FILE, v.persist);
+          log.info('状态已保存 ✓（' + v.persist.slice(0, 110) + '）');
+        }
+        state.lastPersist = v.persist;
+      }
     } catch (e) { log.debug('watcher:', e.message); }
     finally { inflight = false; }
   };
@@ -479,6 +526,9 @@ function startPickWatcher(c) {
       // DSH/Codex 回落路径：不走 file://（视频/权限不可靠），
       // 用 DOM.setFileInputFiles 把真实 File 塞进隐藏 input，再派发 change，
       // 页面 applyBlob 走 blob: URL —— 与路径编码、TCC、CSP 全部解耦。
+      // 真实路径先行传递：payload 的 applyBlob 读它记入持久状态（媒体显示仍走
+      // blob URL 不变）——否则路径在 setFileInputFiles→blob 链路中丢失，重启无法恢复
+      await evaluate(c, 'window.__bcPendingPickPath = ' + JSON.stringify(picked));
       await c.send('DOM.enable');
       const doc = await c.send('DOM.getDocument', { depth: 1 });
       const q = await c.send('DOM.querySelector', {

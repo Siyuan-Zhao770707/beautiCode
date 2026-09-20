@@ -32,7 +32,7 @@ export const BACKGROUND_BAR_STYLE_ID = 'beauticode-workbuddy-bg';
  * payload 世代戳：每次改 payload 内容时递增。守卫用它判断页面上的注入
  * 是否为「当前代」——旧代按钮的闭包攥着已分离的节点引用，必须全拆重建。
  */
-export const BACKGROUND_BAR_VERSION = 'v8.2';
+export const BACKGROUND_BAR_VERSION = 'v9.7';
 
 /** 注入 IIFE 字符串；幂等（守卫同时校验 entry 是否仍在 DOM，侧栏收起/重挂后可重建）。 */
 export const BACKGROUND_BAR_INJECTION: string = (function () {
@@ -320,31 +320,38 @@ document.addEventListener('mousedown', function (ev) {
 
 // ── 舞台 + 媒体层（契约 poster-first 协议） ─────────────────────────
 document.documentElement.setAttribute('data-bc-active', 'true');
-var stage = document.getElementById('beauticode-bg-stage');
-if (!stage) {
-  stage = document.createElement('div');
-  stage.id = 'beauticode-bg-stage';
-  stage.setAttribute('data-bc-injected', BC);
-  stage.style.cssText = ['position:fixed', 'inset:0', 'z-index:0', 'overflow:hidden',
-    'pointer-events:none', 'background-color:#101114'].join(';');
-  document.body.insertBefore(stage, document.body.firstChild);
+// 舞台引用每次实时解析：WorkBuddy 重挂/整页刷新会让闭包捕获的旧节点脱离 DOM
+//（恢复写进幽灵节点 = 看起来"没生效"，实测踩过），绝不缓存元素引用
+function stageEl() {
+  var s2 = document.getElementById('beauticode-bg-stage');
+  if (!s2 || !s2.isConnected) {
+    s2 = document.createElement('div');
+    s2.id = 'beauticode-bg-stage';
+    s2.setAttribute('data-bc-injected', BC);
+    s2.style.cssText = ['position:fixed', 'inset:0', 'z-index:0', 'overflow:hidden',
+      'pointer-events:none', 'background-color:#101114'].join(';');
+    document.documentElement.insertBefore(s2, document.body);
+  }
+  return s2;
 }
 function media(tag) {
-  var el = stage.querySelector(tag + '.bc-media');
+  var st = stageEl();
+  var el = st.querySelector(tag + '.bc-media');
   if (!el) {
     el = document.createElement(tag);
     el.className = 'bc-media';
-    stage.appendChild(el);
+    st.appendChild(el);
     applyBlurVar();
   }
   return el;
 }
 function clearMedia() {
-  [...stage.querySelectorAll('img.bc-media,video.bc-media')].forEach(function (el) {
+  var st = stageEl();
+  [...st.querySelectorAll('img.bc-media,video.bc-media')].forEach(function (el) {
     if (el.tagName === 'VIDEO') { el.pause(); el.removeAttribute('src'); el.load(); }
     el.remove();
   });
-  stage.style.backgroundImage = 'none';
+  st.style.backgroundImage = 'none';
   document.documentElement.removeAttribute('data-bc-media');
   document.documentElement.removeAttribute('data-bc-video-ready');
 }
@@ -405,6 +412,13 @@ function applyBlob(file) {
   var u = URL.createObjectURL(file);
   applyMediaUrl(u, kind);
   currentUrl = u;
+  // 路径记忆：守护选择文件后会把真实路径放到 __bcPendingPickPath——媒体显示用
+  // blob URL（100% 可靠），但状态记真实路径（blob 跨重启失效，重启后靠路径恢复）
+  var real = window.__bcPendingPickPath || '';
+  window.__bcPendingPickPath = '';
+  if (real) { PERSIST.wallpaper = real; PERSIST.blob = false; }
+  else { PERSIST.blob = true; }
+  PERSIST.cleared = false;
 }
 
 // 滑杆行为（对齐 DSH console.js：input 即时生效，0 = 自动）
@@ -416,12 +430,14 @@ dimSlider.addEventListener('input', function () {
   // 线性语义（用户要求）：0% = 无蒙版（原版），往右单调加深；颜色跟主题（深黑/浅白）
   document.documentElement.style.setProperty('--bc-scrim-val', String(n / 100));
   dimValue.textContent = n + '%';
+  PERSIST.dim = n;
 });
 blurSlider.addEventListener('input', function () {
   var n = Number(blurSlider.value);
   if (!Number.isFinite(n)) return;
   applyBlurVar();
   blurValue.textContent = n + '%';
+  PERSIST.blur = n;
 });
 // 面板透明度：'input' 只更新标签；松手（change）挂请求，守护 ≤1.5s 内按新 α 重造
 alphaSlider.addEventListener('input', function () {
@@ -431,7 +447,32 @@ alphaSlider.addEventListener('input', function () {
   // 通过 CSS 变量实时驱动（生成 CSS 时 α 槽已变量化），拖动即生效、零重造。
   alphaValue.textContent = n + '%';
   document.documentElement.style.setProperty('--bc-surface-alpha-pct', (100 - n) + '%');
+  PERSIST.alpha = n;
 });
+
+// ── 状态记忆：页面维护实时状态，守护轮询落地 state.json，启动时 __bcRestoreState 恢复 ──
+// 挂在 window 上跨 payload 重装存活——否则 applyAll 每轮重装都会把状态打回
+// nulls，watcher 会把 nulls 覆盖进 state.json（实测把已保存的壁纸冲掉的真凶）
+window.__bcPersistStore = window.__bcPersistStore || { wallpaper: null, dim: null, blur: null, alpha: null, cleared: false };
+var PERSIST = window.__bcPersistStore;
+window.__bcPersistGet = function () { return JSON.stringify(PERSIST); };
+function persistMark(wallpaper) {
+  if (wallpaper === null) { PERSIST.cleared = true; PERSIST.wallpaper = null; }
+  else { PERSIST.cleared = false; PERSIST.wallpaper = wallpaper; }
+}
+window.__bcRestoreState = function (stRaw) {
+  try {
+    var st = typeof stRaw === 'string' ? JSON.parse(stRaw) : stRaw;
+    var qs = function (sel) { return document.querySelector('#beauticode-workbuddy-bg-panel ' + sel); };
+    // 值相同就不设置/不派发事件——调和每 tick 调用时不再无谓跳动、不干扰拖动中的滑杆
+    if (st.dim != null) { var d2 = qs('.bc-dim-slider'); if (d2 && d2.value !== String(st.dim)) { d2.value = String(st.dim); d2.dispatchEvent(new Event('input')); } }
+    if (st.blur != null) { var b2 = qs('.bc-blur-slider'); if (b2 && b2.value !== String(st.blur)) { b2.value = String(st.blur); b2.dispatchEvent(new Event('input')); } }
+    if (st.alpha != null) { var a2 = qs('.bc-alpha-slider'); if (a2 && a2.value !== String(st.alpha)) { a2.value = String(st.alpha); a2.dispatchEvent(new Event('input')); } }
+    var hasMediaEl = (function () { var s2 = document.getElementById('beauticode-bg-stage'); return !!(s2 && s2.querySelector('img.bc-media,video.bc-media')); })();
+    if (st.wallpaper && (st.wallpaper !== PERSIST.wallpaper || !hasMediaEl)) applyPath(st.wallpaper);
+    else if (!st.wallpaper && st.cleared) { clearMedia(); PERSIST.wallpaper = null; PERSIST.cleared = true; }
+  } catch (e) {}
+};
 
 // ── 弹窗开关（对齐用户名菜单：点击开合、点外部/Esc 关闭、从触发器上方弹出） ──
 function openPop() {
@@ -487,16 +528,21 @@ pop.addEventListener('click', function (ev) {
     clearMedia();
     if (currentUrl && currentUrl.indexOf('blob:') === 0) { URL.revokeObjectURL(currentUrl); }
     currentUrl = null;
+    persistMark(null);
+    PERSIST.blob = false;
     msg('已清除背景。');
   }
 });
 
 // 守护回填入口：原生选择器选中的路径 / 守护侧主动应用
 window.__bcApplyBackgroundPath = function (p) { try { applyPath(String(p)); } catch (e) {} };
+// 安装完成即自愈：WorkBuddy 重挂侧栏会重建弹窗/舞台（回默认），这里主动从
+// store 恢复一次——重装即恢复，不依赖守护轮询的时机（时机盲区实测卡死在默认）
+try { if (PERSIST.wallpaper) window.__bcRestoreState(JSON.parse(JSON.stringify(PERSIST))); } catch (e) {}
 window.__bcBackgroundMsg = function (t) { try { msg(String(t)); } catch (e) {} };
 function applyPath(p) {
-  if (isImage(p)) applyMediaUrl(filePathToUrl(p), 'image');
-  else if (isVideo(p)) applyMediaUrl(filePathToUrl(p), 'video');
+  if (isImage(p)) { applyMediaUrl(filePathToUrl(p), 'image'); persistMark(p); }
+  else if (isVideo(p)) { applyMediaUrl(filePathToUrl(p), 'video'); persistMark(p); }
   else msg('不认识的扩展名：支持 png/jpg/webp/gif/bmp/avif 和 mp4/mov/webm/m4v。');
 }
 function isImage(p) { return /\\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(p); }

@@ -620,9 +620,12 @@ test("every reset arrow in the page markup has a rule in the injected sheet", as
   // the class name and then reading forward to its braces: a regex anchored on
   // `\.name\{` would only accept the one-class-per-rule shape.
   const decl = (name, suffix = "") => {
-    const at = sheet.indexOf(`.${name}${suffix}`);
-    if (at < 0) return undefined;
-    const open = sheet.indexOf("{", at);
+    // Require a selector boundary after the name. A bare indexOf would accept
+    // `.bc-dim-reset:hover` as the base rule for `.bc-dim-reset`, so dropping the
+    // base rule while keeping the hover rule would still pass.
+    const match = sheet.match(new RegExp(`\\.${name}${suffix}(?=\\s*[,{])`));
+    if (!match) return undefined;
+    const open = sheet.indexOf("{", match.index);
     const close = sheet.indexOf("}", open);
     if (open < 0 || close < 0) return undefined;
     return sheet.slice(open + 1, close);

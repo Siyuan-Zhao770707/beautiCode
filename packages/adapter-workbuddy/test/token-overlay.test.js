@@ -65,6 +65,10 @@ test("token include/exclude patterns select surfaces, not states", () => {
     // panels solid.
     "--wb-bg-hover-light",
     "--wb-bg-hover",
+    // 5.6.2 paints secondary buttons opaque (measured #262626 on
+    // `wb-button--secondary`); a neutral surface, so it joins the overlay.
+    // Primary buttons stay excluded (brand colour).
+    "--wb-button-secondary-bg",
   ]) {
     assert.equal(wanted(t), true, `${t} should be overridden`);
   }
@@ -99,8 +103,15 @@ test("overlay derives each token from itself and only touches opaque bases", () 
   // … but its opaque dark counterpart is still handled
   assert.match(css, /--cb-bg-primary:color-mix\(in srgb, #101114 82%, transparent\)/);
   // light and dark land in separate, theme-keyed blocks with raised specificity
-  assert.match(css, /^html:root\{/);
+  assert.match(css, /^html:root,/); // light block leads with :root, now a selector list with the body mirror
   assert.match(css, /html:root\.dark/);
+  // 5.6.2 moved the host's token declarations down to body level; the overlay
+  // must mirror both blocks at body scope or inheritance keeps the host's
+  // opaque literals (nearest declaration wins). Gated on html theme classes so
+  // light and dark can never match at once.
+  assert.match(css, /html:not\(\.dark\):not\(\.cb-dark\) body\{/);
+  assert.match(css, /html\.dark body,/);
+  assert.match(css, /html\.cb-dark body\{/);
 });
 
 test("overlay alpha is configurable and defaults are sane", () => {
@@ -118,6 +129,18 @@ test("overlay ignores junk token names", () => {
     { token: "--wb-bg-primary", lightValue: "var(--x)", darkValue: null },
   ]);
   assert.equal(css, "");
+});
+
+test("both scans walk nested rules and read backgrounds from cssText", () => {
+  // 5.6.2 nests palettes inside @layer/@media/@supports and nested style rules;
+  // a top-level walk missed --wb-button-secondary-bg entirely. And
+  // `background: var(--x)` serialises to "" via getPropertyValue, so the
+  // hardcoded sweep reads rule.style.cssText instead.
+  for (const expr of [TOKEN_SCAN_EXPRESSION, HARDCODED_SURFACE_SCAN_EXPRESSION]) {
+    assert.match(expr, /rule\.cssRules/);
+    assert.match(expr, /visit\(/);
+  }
+  assert.match(HARDCODED_SURFACE_SCAN_EXPRESSION, /rule\.style\.cssText/);
 });
 
 test("the scan must not consume our own overlay (would drift on every re-apply)", () => {

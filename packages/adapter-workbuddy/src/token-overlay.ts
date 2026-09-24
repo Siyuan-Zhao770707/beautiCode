@@ -14,6 +14,14 @@
  *
  * Measured on WorkBuddy 5.5.6: 148 light + 88 dark token overrides cover the
  * whole UI, leaving only hard-coded colours (see FLATTEN_SELECTORS for those).
+ *
+ * Re-measured on WorkBuddy 5.6.2: the host moved its theme token declarations
+ * from `html` down to `body` (`body[data-vscode-theme-name="…"]`, `body.dark`,
+ * plain `body`). Custom properties resolve to the NEAREST declaration, so an
+ * html-level override loses for everything in the body subtree no matter how
+ * important it is — measured flip point is exactly the BODY→HTML boundary
+ * (`--cb-sidebar-bg`: html = color-mix 45%, body = #1f1f1f). The overlay therefore
+ * mirrors every block at body scope too (see DEFAULT_*_SELECTOR).
  */
 
 import { parseColorAlpha } from "./color.js";
@@ -38,6 +46,11 @@ export const TOKEN_INCLUDE_PATTERN =
  * `--wb-bg-primary-fg` are TEXT colours that merely share the `bg` prefix. Making
  * them translucent would render the text invisible — caught by a unit test.
  *
+ * `button-` excludes brand/primary button colours, EXCEPT
+ * `*-button-secondary-bg`: a neutral surface that 5.6.2 paints opaque
+ * (measured on `wb-button--secondary`, computed #262626). Primary buttons keep
+ * their official colour on purpose.
+ *
  * NOTE — `hover` / `active` / `selected` / `open` are deliberately NOT excluded:
  * the host uses tokens such as `--wb-bg-hover-light` as the *resting* background
  * of real panels (measured on `.artifact-slot-panel__card`), so excluding them
@@ -45,7 +58,7 @@ export const TOKEN_INCLUDE_PATTERN =
  * surface still reads as a tint.
  */
 export const TOKEN_EXCLUDE_PATTERN =
-  "disabled|focus|scrollbar|thumb|border|shadow|text|color-|brand|progress|button|foreground|inverse|mask|z-index|width|height|radius|gap|padding|font|size|weight|line|opacity|track|(^|-)(fg|icon|label|placeholder)($|-)|(^|-)on-";
+  "disabled|focus|scrollbar|thumb|border|shadow|text|color-|brand|progress|button-(?!secondary-bg)|foreground|inverse|mask|z-index|width|height|radius|gap|padding|font|size|weight|line|opacity|track|(^|-)(fg|icon|label|placeholder)($|-)|(^|-)on-";
 
 /**
  * Every token override is emitted with `!important`.
@@ -84,10 +97,19 @@ export const TOKEN_OVERLAY_STYLE_ID = "beauticode-token-overlay";
  * on specificity can lose when the theme sheet lands after ours. `html:root`
  * (0,1,1) beats a bare `:root`/`.light` (0,1,0) regardless of order, and
  * `html:root.dark` (0,2,1) beats everything the host uses for dark.
+ *
+ * Since 5.6.2 the host ALSO declares at body level, which html-level rules can
+ * never out-reach (inheritance picks the nearest declaration). The body-scope
+ * mirrors are gated on the same html theme classes we already key everything
+ * else to, so light/dark stay mutually exclusive:
+ * - dark  : `html.dark body` (0,1,2) > host `body[data-vscode-theme-name=…]` (0,1,1)
+ * - light : `html:not(.dark):not(.cb-dark) body` (0,2,2) > host light/neutral body
+ * Both carry !important, and neither can ever match at the same time.
  */
-const DEFAULT_LIGHT_SELECTOR = "html:root";
+const DEFAULT_LIGHT_SELECTOR =
+  "html:root,html:not(.dark):not(.cb-dark) body";
 const DEFAULT_DARK_SELECTOR =
-  'html:root.dark,html:root.cb-dark,html.dark,html.cb-dark,body[data-theme="dark"],[data-theme="dark"]';
+  'html:root.dark,html:root.cb-dark,html.dark,html.cb-dark,body[data-theme="dark"],[data-theme="dark"],html.dark body,html.cb-dark body';
 
 /**
  * Build the overlay CSS from a token scan.
@@ -172,19 +194,27 @@ export const TOKEN_SCAN_EXPRESSION = `(() => {
     if (ownerId.startsWith("beauticode")) continue;
     let list = null;
     try { list = sheet.cssRules; } catch { continue; }
-    for (const rule of list) {
-      if (!rule.style) continue;
-      const sel = rule.selectorText || "";
-      const hasLight = /light/i.test(sel);
-      const hasDark = /(dark|cb-dark)/i.test(sel);
-      const bucket = hasLight && !hasDark ? lightOnly : hasDark && !hasLight ? darkOnly : neutral;
-      for (const prop of rule.style) {
-        if (!prop.startsWith("--")) continue;
-        names.add(prop);
-        const value = rule.style.getPropertyValue(prop).trim();
-        if (value && !bucket.has(prop)) bucket.set(prop, value);
+    // 5.6.2 nests palettes inside @layer / @media / @supports and inside nested
+    // style rules; a top-level-only walk missed whole families
+    // (--wb-button-secondary-bg was measured missing). Walk recursively.
+    const visit = (rules) => {
+      for (const rule of rules) {
+        if (rule.style) {
+          const sel = rule.selectorText || "";
+          const hasLight = /light/i.test(sel);
+          const hasDark = /(dark|cb-dark)/i.test(sel);
+          const bucket = hasLight && !hasDark ? lightOnly : hasDark && !hasLight ? darkOnly : neutral;
+          for (const prop of rule.style) {
+            if (!prop.startsWith("--")) continue;
+            names.add(prop);
+            const value = rule.style.getPropertyValue(prop).trim();
+            if (value && !bucket.has(prop)) bucket.set(prop, value);
+          }
+        }
+        if (rule.cssRules) { try { visit(rule.cssRules); } catch { /* opaque sheet */ } }
       }
-    }
+    };
+    visit(list);
   }
 
   const ORDER = {
@@ -334,19 +364,28 @@ export const HARDCODED_SURFACE_SCAN_EXPRESSION = `(() => {
     const ownerId = sheet.ownerNode && sheet.ownerNode.id ? String(sheet.ownerNode.id) : "";
     if (ownerId.startsWith("beauticode")) continue; // never consume our own sheet
     let list = null; try { list = sheet.cssRules; } catch { continue; }
-    for (const rule of list) {
-      if (!rule.selectorText || !rule.style) continue;
-      const sel = rule.selectorText;
-      if (NEVER.test(sel) || SKIP.test(sel)) { skippedNever++; continue; }
-      const raw = (rule.style.getPropertyValue("background-color") || rule.style.getPropertyValue("background") || "").trim();
-      if (!raw || !LITERAL.test(raw)) continue;
-      if (alphaOf(raw) < 0.95) continue;
-      const chroma = chromaOf(raw);
-      if (chroma === null || chroma > ${HARDCODED_NEUTRAL_MAX_CHROMA}) { skippedSaturated++; continue; }
-      if (seen.has(sel)) continue;
-      seen.add(sel);
-      selectors.push(sel);
-    }
+    // Same nested walk as the token scan, and the value comes from cssText:
+    // declarations like "background: var(--x)" serialise to "" through
+    // getPropertyValue on 5.6.2 (measured), which hid whole surfaces.
+    const visit = (rules) => {
+      for (const rule of rules) {
+        if (rule.selectorText && rule.style) {
+          const sel = rule.selectorText;
+          if (NEVER.test(sel) || SKIP.test(sel)) skippedNever++;
+          else {
+            const mVal = /(?:^|;)\s*background(?:-color)?\s*:\s*([^;]+)/i.exec(rule.style.cssText || "");
+            const raw = mVal ? mVal[1].trim() : "";
+            if (raw && LITERAL.test(raw) && alphaOf(raw) >= 0.95) {
+              const chroma = chromaOf(raw);
+              if (chroma === null || chroma > ${HARDCODED_NEUTRAL_MAX_CHROMA}) skippedSaturated++;
+              else if (!seen.has(sel)) { seen.add(sel); selectors.push(sel); }
+            }
+          }
+        }
+        if (rule.cssRules) { try { visit(rule.cssRules); } catch { /* opaque sheet */ } }
+      }
+    };
+    visit(list);
   }
   return JSON.stringify({ selectors, skippedSaturated, skippedNever });
 })()`;

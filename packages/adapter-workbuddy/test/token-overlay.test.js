@@ -65,10 +65,17 @@ test("token include/exclude patterns select surfaces, not states", () => {
     // panels solid.
     "--wb-bg-hover-light",
     "--wb-bg-hover",
-    // 5.6.2 paints secondary buttons opaque (measured #262626 on
-    // `wb-button--secondary`); a neutral surface, so it joins the overlay.
-    // Primary buttons stay excluded (brand colour).
+    // 5.6.2 paints secondary/neutral buttons opaque (measured on
+    // `wb-button--secondary`: --wb-button-secondary-bg #262626 AND
+    // --cb-input-button-background #3a3a3a — its rule is .cb-button--secondary);
+    // neutral surfaces, so they join the overlay. Primary buttons stay
+    // excluded (brand colour).
     "--wb-button-secondary-bg",
+    "--cb-input-button-background",
+    "--cb-button-secondary-background",
+    // 5.6.2's new family, declared on :root[data-sc-color-scheme="dark"]
+    "--sc-bg-grey_background",
+    "--sc-bg-dark_background",
   ]) {
     assert.equal(wanted(t), true, `${t} should be overridden`);
   }
@@ -76,7 +83,6 @@ test("token include/exclude patterns select surfaces, not states", () => {
   for (const t of [
     "--wb-scrollbar-thumb",
     "--wb-button-primary-bg",
-    "--cb-button-secondary-background",
     "--wb-color-text-primary",
     "--wb-bg-primary-fg",
     "--wb-bg-primary-icon",

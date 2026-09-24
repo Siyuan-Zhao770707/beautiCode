@@ -34,9 +34,15 @@ import { parseColorAlpha } from "./color.js";
  * VS Code design tokens, not with `--wb-*`. `--qad-*` and `--ic-*` are two more
  * families found by the static sweep. The trailing alternative catches any other
  * prefix whose name itself ends in a surface word.
+ *
+ * 5.6.2 adds `--sc-*` (declared on `:root[data-sc-color-scheme="dark"]`, e.g.
+ * `--sc-bg-grey_background: #3a3a3a`): same surface role, so the family joins
+ * the include list — measured painting the industry-template switcher button
+ * and, through it, parts of the sidebar that stayed opaque after the body-scope
+ * fix.
  */
 export const TOKEN_INCLUDE_PATTERN =
-  "(^--(vscode|wb|cb|cr|sk|dui|qad|ic)-[a-z0-9-]*(bg|background|surface|panel|card|modal|elevated|bubble)|^--[a-z0-9-]+-(bg|background|surface)$|^--[a-z0-9-]*(bg|background)-[a-z0-9-]*$)";
+  "(^--(vscode|wb|cb|cr|sk|dui|qad|ic|sc)-[a-z0-9-]*(bg|background|surface|panel|card|modal|elevated|bubble)|^--[a-z0-9-]+-(bg|background|surface)$|^--[a-z0-9-]*(bg|background)-[a-z0-9-]*$)";
 
 /**
  * Interaction states, chrome, non-colour tokens AND paired foreground colours
@@ -46,10 +52,12 @@ export const TOKEN_INCLUDE_PATTERN =
  * `--wb-bg-primary-fg` are TEXT colours that merely share the `bg` prefix. Making
  * them translucent would render the text invisible — caught by a unit test.
  *
- * `button-` excludes brand/primary button colours, EXCEPT
- * `*-button-secondary-bg`: a neutral surface that 5.6.2 paints opaque
- * (measured on `wb-button--secondary`, computed #262626). Primary buttons keep
- * their official colour on purpose.
+ * `button-primary` excludes brand/primary button colours. Neutral button
+ * backgrounds join the overlay: 5.6.2 paints them opaque and they are plain
+ * surfaces (measured leaks: `--wb-button-secondary-bg` #262626 on
+ * `wb-button--secondary`, `--cb-input-button-background` #3a3a3a on the same
+ * button — its rule is `.cb-button--secondary`, not the `--wb-*` token).
+ * Saturated accents stay protected by the overlay's opaque-base rule.
  *
  * NOTE — `hover` / `active` / `selected` / `open` are deliberately NOT excluded:
  * the host uses tokens such as `--wb-bg-hover-light` as the *resting* background
@@ -58,7 +66,7 @@ export const TOKEN_INCLUDE_PATTERN =
  * surface still reads as a tint.
  */
 export const TOKEN_EXCLUDE_PATTERN =
-  "disabled|focus|scrollbar|thumb|border|shadow|text|color-|brand|progress|button-(?!secondary-bg)|foreground|inverse|mask|z-index|width|height|radius|gap|padding|font|size|weight|line|opacity|track|(^|-)(fg|icon|label|placeholder)($|-)|(^|-)on-";
+  "disabled|focus|scrollbar|thumb|border|shadow|text|color-|brand|progress|button-primary|foreground|inverse|mask|z-index|width|height|radius|gap|padding|font|size|weight|line|opacity|track|(^|-)(fg|icon|label|placeholder)($|-)|(^|-)on-";
 
 /**
  * Every token override is emitted with `!important`.
